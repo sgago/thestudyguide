@@ -1,0 +1,16 @@
+@startuml trie-example
+
+title Trie Example
+
+(*) --> C
+(*) --> D
+
+C -down-> A
+A -down-> B
+A -down-> P
+A -down-> T
+
+D -down-> O
+O -down-> G
+
+@enduml

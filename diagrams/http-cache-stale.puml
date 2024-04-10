@@ -1,0 +1,19 @@
+@startuml http-cache-stale
+title HTTP Cache Stale Hit
+
+Client -> Cache: GET /customer/123
+Cache -> Server: GET /customer/123 (cache stale!)\nIf-None-Match:"v1.0"
+note right
+  The cache has the resource but it's old.
+  So we need to get it from the server.
+  Include the If-None-Match and the ETag (version).
+endnote
+Server -> Cache: 304 Not Modified
+note right
+  Respond and include cache
+  HTTP headers. Note that max-age
+  (TTL) and age are in seconds.
+endnote
+Cache -> Client: 200 OK\nCache-Control:max-age=60\nETag:"v1.0"\nAge:0
+
+@enduml

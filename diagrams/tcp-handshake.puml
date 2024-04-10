@@ -1,0 +1,21 @@
+@startuml tcp-handshake
+title The TCP handshake
+
+Sender -> Receiver : SYN, x=rand()
+note left
+  Pick a random sequence number x and
+  send a SYN(chronize) segement to the receiver.
+end note
+Receiver -> Sender : SYN/ACK, y=rand(), x+1
+note right
+  The receiver increments x, chooses a random number y, and
+  sends a SYN/ACK(nowledgement) segment back.
+end note
+Sender -> Receiver : ACK, x+1, y+1, app data
+note left
+  Sender increments both sequence numbers and
+  replies with an ACK segement and first bytes of
+  app data.
+end note
+
+@enduml

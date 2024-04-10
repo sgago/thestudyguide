@@ -1,0 +1,51 @@
+@startuml certificate-chain
+
+frame "Root CA certificate" as RCA {
+    component "Root CA's public key (self)"
+    component "Root CA's signature (self)"
+}
+
+note right of RCA
+    The last certificate in the chain.
+
+    This certificate is self signed by the root CA.
+endnote
+
+frame "Intermediate CA certificate" as ICA {
+    component "Intermediate CA's public key"
+    component "Root CA's signature"
+}
+
+note right of ICA
+    Intermediate certificates are part of the chain.
+    If any certificate is invalid, then there's no trust.
+
+    This certificate was issued by a root CA.
+endnote
+
+frame "Site CA certificate" as SCA {
+    component "Site CA's public key"
+    component "Intermediate CA's signature"
+}
+
+note right of SCA
+    Certificates have different purposes.
+    This represents the certificate of some service
+    like a website.
+
+    This certificate was issued by an intermediate.
+endnote
+
+actor "Client" as cli
+
+note right of cli
+    Clients want to verify the entire certificate chain.
+    Clients have a "certificate store" which has installed
+    certificates from the factory of by admins.
+endnote
+
+[cli] --> [SCA] : Verifies
+[SCA] --> [ICA] : Issued by
+[ICA] --> [RCA] : Issued by
+
+@enduml

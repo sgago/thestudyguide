@@ -1,0 +1,35 @@
+@startuml ip-protocol-suite
+
+title The Internet Protocol Suite
+
+(*) -down->[Start] "Application (Send)"
+note right
+  High-level communication protocols, like DNS or HTTP.
+  Typically, this is what our applications target.
+end note
+-down->[HTTPS] "Transport (Send)"
+-down->[TCP] "Internet (Send)"
+-down->[IP] "Link (Send)"
+-down->[Ethernet] "Host (Send)"
+-right->[Ethernet] "Switch"
+-right->[Ethernet] "Router"
+-up->[IP] "More Routers"
+-down->[IP] "Router"
+-right->[Ethernet] "Host (Recv)"
+-up->[Ethernet] "Link (Recv)"
+-up->[IP] "Internet (Recv)"
+note left
+  Addressing is handled in
+  IP via IP addresses. IP is unreliable.
+  Packets will be missing, depulicated, out-of-order, or corrupted.
+end note
+-up->[TCP] "Transport (Recv)"
+note left
+  TCP creates the illusion of a reliable channel,
+  built on an unreliable one.
+  Byte streams are partitioned into numbered segments,
+  to detect holes, dropped, duplicates, etc.
+end note
+-up->[HTTPS] "Application (Recv)"
+-up->[End] (*)
+@enduml

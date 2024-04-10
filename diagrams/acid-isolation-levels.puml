@@ -1,0 +1,29 @@
+@startuml acid-isolation-levels
+
+title ACID Isolation Levels and Race Conditions They Prevent
+
+(*) -down->"No Guarantees"
+-down->[Dirty Writes] "Read Uncommitted"
+note right
+  Stops T2 from overwritting
+  uncommited values of T1.
+end note
+-down->[Dirty Reads] "Read Committed"
+note right
+  Stops T2 from from reading uncommited
+  values of T1.
+end note
+-down->[Fuzzy Reads] "Repeatable Read"
+note right
+  Stops T2 from seeing different values
+  during sequential reads because T1 changed
+  some values.
+end note
+-down->[Phantom Reads] "Serializable"
+note right
+  Stops T2 from reading values that are
+  added, updated, or deleted by T1 that would
+  result in incorrect calculations.
+end note
+
+@enduml

@@ -1,0 +1,18 @@
+@startuml http-cache-miss
+title HTTP Cache Miss
+
+Client -> Cache: GET /customer/123
+Cache -> Server: GET /customer/123 (cache miss!)
+note right
+  The cache didn't have the resource.
+  So we need to get it from the server.
+endnote
+Server -> Cache: 200 OK\nCache-Control:max-age=60\nETag:"v1.0"
+note right
+  Respond and include cache
+  HTTP headers. Note that max-age
+  (TTL) and age are in seconds.
+endnote
+Cache -> Client: 200 OK\nCache-Control:max-age=60\nETag:"v1.0"\nAge:0
+
+@enduml
