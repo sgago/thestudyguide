@@ -91,7 +91,7 @@ Amortized | Amortized | High order terms that are rarely done, smaller order don
 
 ## O(1)
 Constant time. A constant set of of operations.
-- Hashmap lookups due to pointer arithmetic magic
+- Hashmap lookups (due to pointer arithmetic magic)
 - Array access
 - Math and assignments
 - Pushing and popping from a stack
@@ -106,9 +106,9 @@ fmt.Println("more constant time code")
 ## O(logN)
 Log time. Grows slowly. log(1,000,000) is only about 20.
 - Binary searches, due to constantly splitting solution space in half
-- Balanced binary search tree lookups, again cause it's halved.
+- Balanced binary search tree lookups, again because solution space is being split in half.
 - Processing number digits
-Unless specified, in programmer world, we mean log base 2.
+Unless specified, in programmer world, we mean log base 2 or log2(some_number).
 
 ```go
 for i := N; i > 0; i /= 2 {
@@ -713,7 +713,7 @@ A problem can be solved via dynamic programming (DP) if
 1. The problem can be divided into sub-problems
 2. The sub-problems from bullet 1 overlap
 
-To put DP very simply, all you're trying to do is fill up a 1D or 2D array up with solutions to subproblems such that some slice element has the final solution to the entire problem in it. All the other elements will be solutions to subproblems.
+To put DP simply, all you're trying to do is fill up a 1D or 2D array up with solutions to subproblems such that some slice element has the final solution to the entire problem in it. All the other elements will be solutions to subproblems.
 
 Ultimately, when solving DP problems, we're trying to develop the *recurrence relation* and it is simply critical. For example, the recurrence relation to tabulate any Fibonacci number into a `dp` memo is `dp[i] = dp[i - 1] + dp[i - 2]`.
 
@@ -740,7 +740,7 @@ The notes are ugly, but they get the job done.
 Really, DP is typically similar in efficiency to DFS + memoization + pruning. Pruning is important, to save space and reduced wasted calculations. We typically call DP *bottom-up* and DFS + memoization + pruning *top-down*.
 
 ## Strategy for DP
-Broadly speaking, if this is your first sojourn into DP-land, the big question you're trying to answer is "How the !@#$ do I fill up this slice such that one of the values has the final answer?"
+Broadly speaking, if this is your first sojourn in DP-land, the big question you're trying to answer is "How the !@#$ do I fill up this slice such that one of the values has the final answer?"
 
 To begin solving DP problems, we can answer some basic questions:
 1. What goes in our memo? It's typically the same thing whatever the problem is asking for. For example, if the problem is asking for counts of something, then we're memoizing counts. If it's asking for maximum values, then we memoize maximum values. You might also need to determine here if you need a 1D or 2D memo.
@@ -956,13 +956,11 @@ Classically, DP problems can be solved in either top-down or bottom-up approach.
 2. **Looping** - A DFS using a stack or queue to track state instead of passing values around via function calls as we do with recursion. Uses memoization to skip inserting less efficient solutions into the stack or queue. Another top-down solution, similar to above but different.
 3. **1D or 2D slice/map** - We solve subproblems and store answers into a 1D or 2D slice/map (aka dynamic programming or DP). If there's overlap in the index, we take the "better" solution. The final location in the slice or map will hold the answer. Again, this is the classic method for bottom-up approaches.
 
-Honestly, if this was a production need, I would say it depends on the problem and how much we care about performance, readability, etc.
+Honestly, if this was a production need, I would say it depends on the problem and how much we care about performance, readability, etc. But this is "interview" or "competitive" or "coding I do between jobs" programming so different rules apply lol. Therefore, you might consider simply picking top-down or bottom-up based on comfort level alone.
 
-But this is "interview programming". Therefore, you might consider simply picking top-down or bottom-up based on comfort level alone.
-
-Generally, from my personal practice, I prefer looping. Why?
+Broadly speaking, from my personal practice, I prefer looping. Why?
 - After solving n-million DFS problems with recursion I always end up with a public and private function. The private function that actually does the DFS has an issue with tons of telescoping parameters and it's unclear which of these are inputs and outputs. Invariably, I want to change the order, add a complex type, or simply get confused about which parameters are for what. Eventually, you just decide to slap all the parameters into a state struct because it's easier to modify and use. No need to worry about the order struct fields appear in!
-- After solving n-million DP problems, the recurrence relation, the formula that gets you to dp[next] from dp[previous states], is hard to spot yet critical to figure out. Let me put this another way. **You 100% need to develop the recurrence relation formula for getting from a previous state to the next state. You need to do this in a reasonable amount of time. If you have the recurrence relation, you have almost everything you need. If you don't have the recurrence relation, you have nothing. If you don't have the recurrence relation, don't bother starting to code anything. This is all or nothing development - you either have the whole thing or you don't.** Again, you will 100% absolutely need to type out the the entire dp memo as it loops via comments, starting with the initial conditions. And solving one or two subproblems is just not enough to see the solution in its entirety. You need to type out like 5 to 10 iterations and learn how to solve problems that overlap. If you don't type it out, the recurrence relation will be hard to see.
+- After solving n-million DP problems, the recurrence relation, the formula that gets you to dp[next] from dp[previous states], is hard to spot yet critical to figure out. Let me put this another way with bold text because it's important. **You 100% need to develop the recurrence relation formula for getting from a previous state to the next state. You need to do this in a reasonable amount of time. If you have the recurrence relation, you have almost everything you need. If you don't have the recurrence relation, you have nothing. If you don't have the recurrence relation, don't bother starting to code anything. This is all or nothing development - you either have the whole thing or you don't.** Again, you will 100% absolutely need to type out the the entire dp memo as it loops via comments, starting with the initial conditions. And solving one or two subproblems is just not enough to see the solution in its entirety. You need to type out like 5 to 10 iterations and learn how to solve problems that overlap. If you don't type it out, the recurrence relation will be hard to see.
 
 Again, top-down looping feels like it lends itself to iterative problem solving. It feels consistent even though it might not always be faster than DP. With DP, you're going to get a unique recurrence relation and memo every time.
 1. Read the problem, determine WTF is going on.

@@ -28,11 +28,50 @@ An API gateway is especially beneficial for public APIs backed by microservices.
 - Start with a reverse proxy like [nginx](https://www.nginx.com/) (pronounced engine-X) or [traefik](https://traefik.io/traefik/) (pronounced traffic)
 - Use a managed service like Google's [Apigee](https://cloud.google.com/apigee?hl=en)
 
-In this example, we'll learn and explore traefik. Typically, nginx is faster but traefik's convenient, automagic service discovery shines through and can help expedite learning.
+In this project, we'll learn and explore traefik. Nginx is supposedly faster but traefik's convenient, automagic service discovery shines through here and expedites learning.
+
+## Traefik
+
 ![](https://doc.traefik.io/traefik/assets/img/quickstart-diagram.png)
 
-## 
+The [docker-compose.yml](./docker-compose.yml) setup for traefik is quite straightforward:
+```yml
+services:
+    # The official v2 Traefik docker image
+  traefik:
+    image: traefik:v2.11
+    command: --api.insecure=true --providers.docker # Enables the web UI and tells Traefik to listen to docker
+    ports:
+      - "80:80" # Expose traefik's entry port
+      - "8080:8080" # Optionally, expose traefik's dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Lets traefik can listen to the Docker events
 
-## 
+  # Your service running behind the proxy!
+  # I've pulled in my super simplistic goginair project
+  goginair:
+    image: steve8550/goginair:latest
+    labels:
+      # Tells traefik to route requests to goginair
+      - "traefik.enable=true"
+
+      # And this tells traefik the routing rules
+      # You can route to specific host names and url paths
+      - "traefik.http.routers.api.rule=Host(`goginair.docker.localhost`)"  # Replace with your desired domain
+
+      # And this specifies which ports to route requests to
+      - "traefik.http.services.api.loadbalancer.server.port=8080"  # goginair listens on port 8080
+```
+
+Navigate to this directory via CLI, run `docker compose up -d`, and visit
+- [`http://localhost:8080/`](http://localhost:8080/) to see traefik's dashboard
+![](../../imgs/traefik_dashboard.png)
+
+- Goginair's super boring home page at [`http://goginair.docker.localhost`](http://goginair.docker.localhost)
+![](../../imgs/goginair_home.png)
+
+Warning: Traefik will cache the redirect from `localhost:8080` to `localhost:8080/dashboard`. Disable cache in the networking tab to make it stop:
+![](../../imgs/chrome_disable_cache.png)
 
 ## References
+- Traefik's quick start is definitely helpful [here](https://doc.traefik.io/traefik/getting-started/quick-start/)

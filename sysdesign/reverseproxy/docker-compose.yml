@@ -1,22 +1,33 @@
-version: '3'
-
 services:
-  traefik:
     # The official v2 Traefik docker image
+  traefik:
     image: traefik:v2.11
-    # Enables the web UI and tells Traefik to listen to docker
-    command: --api.insecure=true --providers.docker
+    command: --api.insecure=true --providers.docker # Enables the web UI and tells Traefik to listen to docker
     ports:
-      # The HTTP port
-      - "80:80"
-      # The Web UI (enabled by --api.insecure=true)
-      - "8080:8080"
+      - "80:80" # Expose traefik's entry port
+      - "8080:8080" # Expose traefik's dashboard
     volumes:
-      # So that Traefik can listen to the Docker events
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock # Lets traefik can listen to the Docker events
 
+  # Optional whoami service for testing and debugging
+  # and shows which containers are handling requests
   whoami:
     # A container that exposes an API to show its IP address
     image: traefik/whoami
     labels:
       - "traefik.http.routers.whoami.rule=Host(`whoami.docker.localhost`)"
+
+  # Your service running behind the proxy!
+  # I've pulled in my simplistic goginair image
+  goginair:
+    image: steve8550/goginair:latest
+    labels:
+      # Tells traefik to route requests to goginair
+      - "traefik.enable=true"
+
+      # And this tells traefik the routing rules
+      # You can route to specific host names and url paths
+      - "traefik.http.routers.api.rule=Host(`goginair.docker.localhost`)"  # Replace with your desired domain
+
+      # And this specifies which ports to route requests to
+      - "traefik.http.services.api.loadbalancer.server.port=8080"  # goginair listens on port 8080

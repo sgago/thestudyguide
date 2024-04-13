@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
         "Ackermann",
+        "Apigee",
         "Arity",
         "automagic",
         "automagically",
@@ -10,6 +11,7 @@
         "CRDTs",
         "datagram",
         "Errorf",
+        "goginair",
         "goroutines",
         "Hashcode",
         "heapify",

@@ -8,7 +8,7 @@
 
 
 #### Glue work
-Tanya Reilly has a good blog on [glue work](https://noidea.dog/glue).
+Tanya Reilly has a great blog on [glue work](https://noidea.dog/glue).
 
 ### Manage technical quality
 
