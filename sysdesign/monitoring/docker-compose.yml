@@ -6,6 +6,9 @@ services:
     container_name: goginair
     ports:
       - '8080:8080'
+    # Important to bind/mount your codebase dir to /app dir for live reload
+    volumes:
+      - ./:/app
 
   prometheus:
     image: prom/prometheus:latest

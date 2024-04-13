@@ -1,5 +1,4 @@
-# Our base image is golang
-FROM golang:latest as base
+FROM golang:latest
 
 WORKDIR /app
 
@@ -7,13 +6,7 @@ WORKDIR /app
 RUN go install github.com/cosmtrek/air@latest
 
 # Copy the files we need from our local project to the work directory (WORKDIR)
-COPY ./src/go.mod ./src/go.sum .air.toml ./
-
-# Copy our all our go src files over, air will call build and run on this for us
-COPY ./src/main ./src/main
-
-# Copy our static HTML go templates over
-COPY ./src/templates ./../templates
+COPY . .
 
 # Download our go packages
 RUN go mod download
