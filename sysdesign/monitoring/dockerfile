@@ -1,23 +1,26 @@
-FROM golang:latest
+# Our base image is golang
+FROM golang:latest as base
 
-# Set the Current Working Directory inside the container
 WORKDIR /app
 
-RUN export GO111MODULE=on
+# Install air for live reloading
+RUN go install github.com/cosmtrek/air@latest
 
-# Copy go mod and sum files
-COPY go.mod go.sum ./
+# Copy the files we need from our local project to the work directory (WORKDIR)
+COPY ./src/go.mod ./src/go.sum .air.toml ./
 
-# Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
+# Copy our all our go src files over, air will call build and run on this for us
+COPY ./src/main ./src/main
+
+# Copy our static HTML go templates over
+COPY ./src/templates ./../templates
+
+# Download our go packages
 RUN go mod download
 
-COPY . .
+# See the .air.toml file's build bin and cmd properties for the specific cmds
 
-# Build the application
-RUN go build -o main .
+# Expose ports to the outside world
+EXPOSE 8080
 
-# Expose port 9000 to the outside world
-EXPOSE 8080 9090
-
-# Command to run the executable
-CMD ["./main"]
+CMD ["air", "-c", ".air.toml"]

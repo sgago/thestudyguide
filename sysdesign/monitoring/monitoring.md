@@ -55,9 +55,22 @@ where:
 -H = a customer HTTP header like `-H "Accept: text/html. You can chain many -H's together like -H "Accept: text/html" -H "Content-Type: application/xml"`.
 
 ## Prometheus query language
-Prometheus query language (PromQL) lets users select and aggregate their time series data.
+Prometheus query language (PromQL) lets users select and aggregate their time series data. It has nothing in common with other query languages like SQL.
+
+Again, to get started, navigate to this directory via CLI and
+- Run `docker compose up -d` or `dcupd` to start this project
+- Run the load testing tool via `hey -z 5m -q 5 -m GET -H "Accept: text/html" http://localhost:8080` to make the metrics change over time. Increase the `5m` (five minutes) to `10m` or `60m` if you're going to be studying longer.
+- 
+
+This project includes 6 self-defined metrics
+- cpu_temperature_celsius
+- ping_path_total
+- ping_path_response_bucket
+- index_path_total
+- index_path_response_bucket
 
 ## References
 - Gabriel Tanner has a great blog on getting setup with Go, Prometheus, and Grafana that I followed [here](https://gabrieltanner.org/blog/collecting-prometheus-metrics-in-golang/). Very easy to follow.
 - PromQL querying basics [here](https://prometheus.io/docs/prometheus/latest/querying/basics/)
 - PromQL examples [here](https://prometheus.io/docs/prometheus/latest/querying/examples/)
+- PromQL quick start from medium [here](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085)

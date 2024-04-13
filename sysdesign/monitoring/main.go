@@ -1,17 +1,47 @@
 package main
 
 import (
+	"embed"
+	"html/template"
 	"math/rand"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const (
+	templPath = "templates/*"
+
+	indexPath   = "/"
+	pingPath    = "/ping"
+	metricsPath = "/metrics"
+	healthzPath = "/healthz"
+
+	indexTempl = "index.tmpl"
+)
+
 var (
+	//go:embed templates
+	embeddedFiles embed.FS
+
+	request_buckets = []float64{
+		0.000,
+		0.005,
+		0.010,
+		0.015,
+		0.020,
+		0.025,
+		0.030,
+		0.035,
+		0.040,
+		0.045,
+		0.050,
+		0.055,
+	}
+
 	cpuTemp = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "cpu_temperature_celsius",
 		Help: "The current CPU temperature in celsius",
@@ -25,71 +55,83 @@ var (
 	pingPathBucketMilliseconds = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name:    "ping_path_response_bucket",
 		Help:    "Histogram of /ping response times in milliseconds",
-		Buckets: []float64{10, 100, 1000},
+		Buckets: request_buckets,
 	})
 
-	homePathTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+	indexPathTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "home_path_total",
 		Help: "The total number of requests to /",
 	}, []string{"path"})
 
-	homePathBucketMilliseconds = prometheus.NewHistogram(prometheus.HistogramOpts{
+	indexPathBucketMilliseconds = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name:    "home_path_response_bucket",
 		Help:    "Histogram of / response times in milliseconds",
-		Buckets: []float64{10, 100, 1000},
+		Buckets: request_buckets,
 	})
 )
 
 func init() {
 	prometheus.MustRegister(cpuTemp)
-	prometheus.MustRegister(homePathTotal)
-	prometheus.MustRegister(homePathBucketMilliseconds)
+	prometheus.MustRegister(indexPathTotal)
+	prometheus.MustRegister(indexPathBucketMilliseconds)
 	prometheus.MustRegister(pingPathTotal)
 	prometheus.MustRegister(pingPathBucketMilliseconds)
 }
 
 func main() {
+	templ := template.
+		Must(template.New("").
+			ParseFS(embeddedFiles, templPath))
+
 	randCpuTemp()
 
 	r := gin.Default()
+
+	r.SetHTMLTemplate(templ)
 
 	// Here's the magic where we hook up the prometheus to
 	// a /metrics endpoint via gin and handlers.
 	// We configure prometheus to hit this endpoint via
 	// /prometheus/prometheus.yml.
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	r.GET(metricsPath, gin.WrapH(promhttp.Handler()))
 
-	r.LoadHTMLGlob("templates/*")
+	r.GET(healthzPath, healthz)
+	r.GET(indexPath, index)
+	r.GET(pingPath, ping)
 
-	r.GET("/ping", func(c *gin.Context) {
-		start := time.Now()
+	r.Run()
+}
 
-		randCpuTemp()
-		pingPathTotal.Inc()
+func index(c *gin.Context) {
+	start := time.Now()
 
-		c.JSON(http.StatusOK, gin.H{
-			"message": "pong",
-		})
+	randCpuTemp()
+	indexPathTotal.WithLabelValues("/").Add(1)
 
-		pingPathBucketMilliseconds.
-			Observe(float64(time.Since(start).Milliseconds()))
+	c.HTML(200, indexTempl, gin.H{
+		"title": "GoGinAir",
 	})
 
-	r.GET("/", func(c *gin.Context) {
-		start := time.Now()
+	indexPathBucketMilliseconds.
+		Observe(float64(time.Since(start).Milliseconds()))
+}
 
-		randCpuTemp()
-		homePathTotal.WithLabelValues("/").Add(1)
+func ping(c *gin.Context) {
+	start := time.Now()
 
-		c.HTML(200, "index.tmpl", gin.H{
-			"title": "Main website",
-		})
+	randCpuTemp()
+	pingPathTotal.Inc()
 
-		homePathBucketMilliseconds.
-			Observe(float64(time.Since(start).Milliseconds()))
+	c.JSON(http.StatusOK, gin.H{
+		"message": "pong",
 	})
 
-	r.Run(":8080")
+	pingPathBucketMilliseconds.
+		Observe(float64(time.Since(start).Milliseconds()))
+}
+
+func healthz(c *gin.Context) {
+	c.Writer.WriteHeader(http.StatusOK)
 }
 
 // randCpuTemp sets a random CPU temperature.
