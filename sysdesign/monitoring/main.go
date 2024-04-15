@@ -20,7 +20,7 @@ const (
 	metricsPath = "/metrics"
 	healthzPath = "/healthz"
 
-	indexTempl = "index.tmpl"
+	indexTempl = "index.html"
 )
 
 var (
@@ -54,18 +54,18 @@ var (
 
 	pingPathBucketMilliseconds = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name:    "ping_path_response_bucket",
-		Help:    "Histogram of /ping response times in milliseconds",
+		Help:    "Histogram of /ping response times in seconds",
 		Buckets: request_buckets,
 	})
 
 	indexPathTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "home_path_total",
+		Name: "index_path_total",
 		Help: "The total number of requests to /",
 	}, []string{"path"})
 
 	indexPathBucketMilliseconds = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "home_path_response_bucket",
-		Help:    "Histogram of / response times in milliseconds",
+		Name:    "index_path_response_bucket",
+		Help:    "Histogram of / response times in seconds",
 		Buckets: request_buckets,
 	})
 )
@@ -83,11 +83,21 @@ func main() {
 		Must(template.New("").
 			ParseFS(embeddedFiles, templPath))
 
-	randCpuTemp()
+	go func() {
+		for {
+			randCpuTemp()
+			time.Sleep(time.Second * 5)
+		}
+	}()
 
 	r := gin.Default()
 
 	r.SetHTMLTemplate(templ)
+
+	r.GET(healthzPath, healthz)
+
+	r.GET(indexPath, index)
+	r.GET(pingPath, ping)
 
 	// Here's the magic where we hook up the prometheus to
 	// a /metrics endpoint via gin and handlers.
@@ -95,17 +105,12 @@ func main() {
 	// /prometheus/prometheus.yml.
 	r.GET(metricsPath, gin.WrapH(promhttp.Handler()))
 
-	r.GET(healthzPath, healthz)
-	r.GET(indexPath, index)
-	r.GET(pingPath, ping)
-
 	r.Run()
 }
 
 func index(c *gin.Context) {
 	start := time.Now()
 
-	randCpuTemp()
 	indexPathTotal.WithLabelValues("/").Add(1)
 
 	c.HTML(200, indexTempl, gin.H{
@@ -113,13 +118,12 @@ func index(c *gin.Context) {
 	})
 
 	indexPathBucketMilliseconds.
-		Observe(float64(time.Since(start).Milliseconds()))
+		Observe(float64(time.Since(start).Seconds()))
 }
 
 func ping(c *gin.Context) {
 	start := time.Now()
 
-	randCpuTemp()
 	pingPathTotal.Inc()
 
 	c.JSON(http.StatusOK, gin.H{
@@ -127,7 +131,7 @@ func ping(c *gin.Context) {
 	})
 
 	pingPathBucketMilliseconds.
-		Observe(float64(time.Since(start).Milliseconds()))
+		Observe(float64(time.Since(start).Seconds()))
 }
 
 func healthz(c *gin.Context) {

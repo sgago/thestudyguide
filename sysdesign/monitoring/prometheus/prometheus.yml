@@ -6,8 +6,8 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ['localhost:9090']
-  - job_name: golang 
+  - job_name: goginair 
     metrics_path: /metrics
     static_configs:
       - targets:
-        - golang:8080
+        - goginair:8080

@@ -46,13 +46,13 @@ Run `docker compose up -d`. Using default values, you can hit:
 - Our boring Go Gin app is at [http://localhost:8080](http://localhost:8080)
 
 ## Moving the metrics
-So, we need to make the metrics move around some so that it's at least interesting to look at. We can use the load testing tool hey to make that happen. The hey load testing tool repo is [here](https://github.com/rakyll/hey). Basic use is
+So, we need to make the metrics move around some so that they move some. We can use the load testing tool hey to make that happen. The hey load testing tool repo is [here](https://github.com/rakyll/hey). Basic use is
 `hey -z 5m -q 5 -m GET -H "Accept: text/html" http://localhost:8080`
 where:
 -z = duration of load testing, like 10s or 5m.
 -q = Rate limit of load testing, in queries per second (QPS).
 -m = HTTP method: GET, POST, PUT, DELETE, or HEAD.
--H = a customer HTTP header like `-H "Accept: text/html. You can chain many -H's together like -H "Accept: text/html" -H "Content-Type: application/xml"`.
+-H = a customer HTTP header like `-H "Accept: text/html`. You can chain many -H's together like `-H "Accept: text/html" -H "Content-Type: application/xml"`.
 
 ## Prometheus query language
 Prometheus query language (PromQL) lets users select and aggregate their time series data. It has nothing in common with other query languages like SQL.
@@ -60,17 +60,40 @@ Prometheus query language (PromQL) lets users select and aggregate their time se
 Again, to get started, navigate to this directory via CLI and
 - Run `docker compose up -d` or `dcupd` to start this project
 - Run the load testing tool via `hey -z 5m -q 5 -m GET -H "Accept: text/html" http://localhost:8080` to make the metrics change over time. Increase the `5m` (five minutes) to `10m` or `60m` if you're going to be studying longer.
-- 
 
-This project includes 6 self-defined metrics
-- cpu_temperature_celsius
-- ping_path_total
-- ping_path_response_bucket
-- index_path_total
-- index_path_response_bucket
+This project includes some custom-defined metrics
+- cpu_temperature_celsius - a randomly set float64 pretending to be CPU temperature
+- index_path_total - number of visits to `/`
+- index_path_response_bucket - bucketed response times for `/`
+- ping_path_total - number of visits to `/ping`
+- ping_path_response_bucket - bucketed response times for `/ping`
+
+Metrics can be queried via [prometheus](http://localhost:9090) like
+```
+cpu_temperature_celsius
+```
+
+Metrics can be filtered via their associated labels using curly braces and key-values such as
+```
+cpu_temperature_celsius{instance="goginair:8080"}
+cpu_temperature_celsius{instance="goginair:8080", job="goginair"}
+```
+
+Note that the `,` represents an AND operation, as in "instance equals goginair:8080 AND job equals goginair". PromQL does not support an OR operator currently.
+
+Metrics with labels can also be filtered with not equals `!=` or regexes by `=~` such as
+```
+cpu_temperature_celsius{instance!="goginbear:8080"}
+cpu_temperature_celsius{instance=~"goginair:808\\d"}
+```
+
+PromQL can also filter on metric names themselves including with regexes. The metric name is also a label and can be filtered using `__name__`. The following will return all metric names starting with "index_"
+```
+{__name__=~"index_.*"}
+```
 
 ## References
 - Gabriel Tanner has a great blog on getting setup with Go, Prometheus, and Grafana that I followed [here](https://gabrieltanner.org/blog/collecting-prometheus-metrics-in-golang/). Very easy to follow.
 - PromQL querying basics [here](https://prometheus.io/docs/prometheus/latest/querying/basics/)
 - PromQL examples [here](https://prometheus.io/docs/prometheus/latest/querying/examples/)
-- PromQL quick start from medium [here](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085)
+- PromQL quick start from Medium [here](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085)
