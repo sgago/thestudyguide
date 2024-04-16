@@ -68,6 +68,7 @@ This project includes some custom-defined metrics
 - ping_path_total - number of visits to `/ping`
 - ping_path_response_bucket - bucketed response times for `/ping`
 
+### Metrics and labels
 Metrics can be queried via [prometheus](http://localhost:9090) like
 ```
 cpu_temperature_celsius
@@ -91,6 +92,61 @@ PromQL can also filter on metric names themselves including with regexes. The me
 ```
 {__name__=~"index_.*"}
 ```
+
+### Offsets
+PromQL can query historical data via `offset` such as
+```
+cpu_temperature_celsius offset 1m
+cpu_temperature_celsius offset 7d
+```
+
+We can then use 
+```
+cpu_temperature_celsius > 1.10 * cpu_temperature_celsius offset 1m
+```
+
+Offsets can be specified in
+- years (y)
+- weeks (w)
+- days (d)
+- hours (h)
+- minutes (m)
+- seconds (s)
+- milliseconds (ms)
+
+Offsets can also be negative for look at time comparisons forward like
+```
+cpu_temperature_celsius offset -7d
+```
+
+### Rates
+Constantly increasing values from counter metrics, like our index_path_total counter, aren't super helpful, by themselves. They grow forever or get reset to zero. Yes, our home page is being hit, but the total count doesn't really tell us much that's helpful.
+![](../../imgs/grafana_index_path_total.png)
+
+In fact, Grafana will warn you nicely that this is useless:
+![](../../imgs/grafana_is_counter_warning.png)
+
+The PromQL `rate` function will calculate the average rate of change between the current and previous values. The following will calculate the average rate of change over the last minute:
+```
+rate(index_path_total[1m])
+```
+
+The duration `[1m]` can be dropped to get the rate of change between 2 points with
+```
+rate(index_path_total)
+``` 
+
+Rate is the average change (not instantaneous) given as
+```
+rate = (change in y) / (change in x) = (y2 - y1) / (x2 - x1)
+```
+
+In PromQL, where V is value and T is time, this can be expressed as
+```
+rate = (Vcurr - Vprev) / (Tcurr - Tprev)
+```
+
+
 
 ## References
 - Gabriel Tanner has a great blog on getting setup with Go, Prometheus, and Grafana that I followed [here](https://gabrieltanner.org/blog/collecting-prometheus-metrics-in-golang/). Very easy to follow.
