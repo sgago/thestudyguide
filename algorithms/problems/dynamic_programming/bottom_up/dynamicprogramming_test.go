@@ -3,6 +3,7 @@ package bottomup
 import (
 	"fmt"
 	"sgago/thestudyguide/col/bitflags"
+	"sgago/thestudyguide/col/grid"
 	"slices"
 	"testing"
 
@@ -13,13 +14,13 @@ import (
 This test case demonstrates how one could sum up a slice.
 But this is actually a trivial dynamic programming (DP) example as we'll soon see.
 
-And, no, we're not going to start with weird Fibonacci numbers that some
+And, no, we're not going to start with weird Fibonacci numbers that some ancient
 Italian mathematician came up with in like 1200 AD. I want to start with something
 that is simple. Dead. Simple. Summing up values in a slice is the simple we're going to start with.
 
 Anyway, here's one way we could sum up a slice.
 */
-func Test_SumASlice_MemoryOptimization(t *testing.T) {
+func Test_SumASlice_Basic(t *testing.T) {
 	total := 0
 	nums := []int{1, 2, 3, 4, 5} // Nums to sum up
 
@@ -38,19 +39,21 @@ sum a slice in "the dynamic programming way".
 
 If you're new to DP, the very basic idea is to fill up a slice such that an element has the correct answer.
 In the first couple of examples, the last array element will have the answer.
-However, this won't always be the case. We'll worry about all that later, though.
+(This won't always be the case, but we'll worry about that later.)
 
-I always name this memo "dp". You can name it "memo" or whatever makes you happy.
+I always name the dp memo "dp". You can name it "memo" or whatever makes you happy, obviously.
 
-We only need a 1D slice for summing up a slice the DP way.
-Since our final problem wants a sum, our DP memo will also hold sums of sub problems.
+For our first couple of DP problems, we're going to use a 1D slice.
+Later, we'll need to bust out 2D slices, but, again, that's a problem for future us.
 
-Of course, you can use one variable as shown above, and that's nice.
+Now, our final problem wants a sum, so our dp memo will also hold sums.
+
+As you saw above, you can use one variable to sum a slice, and that's nice.
 But, here, we want to focus on doing solving this the "DP way" because most
 DP problems are going to be waaay harder than just summing up the numbers in an array.
 We want to focus on solving any DP problem the DP way.
 */
-func Test_SumASlice(t *testing.T) {
+func Test_SumASlice_TheDpWay(t *testing.T) {
 	nums := []int{1, 2, 3, 4, 5} // Sums to 15
 
 	// dp is our memo, that will hold answers to our subproblems.
@@ -64,9 +67,9 @@ func Test_SumASlice(t *testing.T) {
 	// dp[i] is going to hold the sum of all the previous numbers.
 
 	// Our initial condition, dp[0], is going to be nums[0].
-	// Our DP loop is going to start at idx 1 and then look at idx-1 values.
 	dp[0] = nums[0]
 
+	// Our DP loop is going to start at idx 1 and then look at idx-1 values.
 	for i := 1; i < len(nums); i++ {
 		// Our recursion relation is the formula that gets us the solution to the
 		// current state from previous states.
@@ -84,6 +87,26 @@ func Test_SumASlice(t *testing.T) {
 	fmt.Println("  dp:", dp) // Again, notice how dp[0], dp[1], dp[2], etc. stores answers to each of the subproblems
 
 	// And, as promised, the last value holds our answer.
+	last := dp[len(dp)-1]
+
+	assert.Equal(t, 15, last)
+}
+
+/*
+Here's the same thing without as much noise from comments.
+*/
+func Test_SumASlice_TheDpWay_WithNoComments(t *testing.T) {
+	nums := []int{1, 2, 3, 4, 5} // Sums to 15
+	dp := make([]int, len(nums))
+	dp[0] = nums[0]
+
+	for i := 1; i < len(nums); i++ {
+		prev := dp[i-1]
+		curr := nums[i]
+
+		dp[i] = curr + prev
+	}
+
 	last := dp[len(dp)-1]
 
 	assert.Equal(t, 15, last)
@@ -501,4 +524,102 @@ func Test_TheDivisorGame_WithBitFlags(t *testing.T) {
 	}
 
 	fmt.Println("Player 1 can force a win:", dp.Get(n))
+}
+
+/*
+The robot paths problem will introduce us to solving DP problems with 2D slices.
+
+Sadly, there's no actual robot...
+
+All we do here is start in the upper left of a 2D slice and minimize the sum it takes to
+get to the bottom right. You may only move right or down.
+
+So, for
+1 2 3
+4 5 6
+7 8 9
+
+The minimum sum is 1 -> 2 -> 3 -> 6 -> 9 which sums to 21.
+*/
+func TestRobotPaths_WithComments(t *testing.T) {
+	path := [][]int{
+		{1, 2, 3},
+		{4, 5, 6},
+		{7, 8, 9},
+	}
+
+	rows, cols := len(path), len(path[0])
+
+	fmt.Println("Robot paths matrix being considered is")
+	for r := 0; r < len(path); r++ {
+		fmt.Println(path[r])
+	}
+
+	fmt.Println()
+
+	// After you solve a bunch of 2D DP and graph problems with golang, you start to want a collection that can
+	// - Declare a 2D slice with r rows and c cols instantly
+	// - Allocs sub-slices immediately so that we don't have to think about undefined and nil ref errors
+	// - Require the rows to be of equal length so that I don't have to think about those errors either
+	// - Initializes all the elements to some value other than the default value
+	// - Lets you get any row or column as a single 1D slice
+	// - Handles getting neighbor elements that are up, down, left, and right, either with row/col indexes or without
+	// - Handles getting a sub-2D slice from a larger one, either with row/col indexes or without
+	dp := grid.New[int](rows, cols)
+
+	// Initial state at 0, 0
+	dp.Set(0, 0, path[0][0])
+
+	fmt.Println("Initial dp memo is")
+	fmt.Println(dp.String())
+
+	// The first row and column are annoying because
+	// r-1 or c-1 will give us out-of-bound panics
+	// (0 - 1 == -1 == invalid index)
+	// We'll handle these with separate loops to keep the
+	// cyclomatic complexity to a dull roar.
+
+	// Fill in the first row
+	for c := 1; c < cols; c++ {
+		curr := path[0][c]
+		prev := dp.Get(0, c-1)
+		dp.Set(0, c, curr+prev)
+	}
+
+	fmt.Println("First row filled in")
+	fmt.Println(dp.String())
+
+	// Fill in the first column
+	for r := 1; r < rows; r++ {
+		prev := dp.Get(r-1, 0)
+		curr := path[r][0]
+		dp.Set(r, 0, curr+prev)
+	}
+
+	fmt.Println("First row and column filled in")
+	fmt.Println(dp.String())
+
+	// Now that we don't have to worry about
+	// out-of-bound errors due to -1 indexes, fill in the rest
+	for r := 1; r < rows; r++ {
+		for c := 1; c < cols; c++ {
+			curr := path[r][c]
+
+			prevLeft := dp.Get(r-1, c)
+			prevUp := dp.Get(r, c-1)
+
+			optimal := min(prevLeft, prevUp)
+
+			dp.Set(r, c, optimal+curr)
+		}
+
+		fmt.Println("Row", r, "filled in")
+		fmt.Println(dp.String())
+	}
+
+	// Answer is in the last cell value this time
+	ans := dp.Last()
+	fmt.Println("Last value, the answer:", ans)
+
+	assert.Equal(t, 21, ans)
 }

@@ -1,41 +1,63 @@
 services:
   zoo1:
     image: zookeeper
-    restart: always
+    restart: unless-stopped
     hostname: zoo1
     ports:
-      - 2181:2181
+      - 2181:2181 # Port 2181 is the client connection port
+    expose:
+      - 2888 # Port 2888 is the quorum port, used by leader to communicate with followers
+      - 3888 # Port 3888 is the election port to vote for a leader
     environment:
       ZOO_MY_ID: 1
       ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+    networks:
+      - zoo-net
 
   zoo2:
     image: zookeeper
-    restart: always
+    restart: unless-stopped
     hostname: zoo2
     ports:
       - 2182:2181
+    expose:
+      - 2888
+      - 3888
     environment:
       ZOO_MY_ID: 2
       ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+    networks:
+      - zoo-net
 
   zoo3:
     image: zookeeper
-    restart: always
+    restart: unless-stopped
     hostname: zoo3
     ports:
       - 2183:2181
+    expose:
+      - 2888
+      - 3888
     environment:
       ZOO_MY_ID: 3
       ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+    networks:
+      - zoo-net
 
   goginair:
     build:
       context: ./
       dockerfile: dockerfile
     container_name: goginair-zookeeper
+    restart: unless-stopped
     ports:
       - '8080:8080'
+    networks:
+      - zoo-net
     # Important to bind/mount your codebase dir to /app dir for live reload
     volumes:
       - ./:/app
+
+networks:
+  zoo-net:
+    driver: bridge

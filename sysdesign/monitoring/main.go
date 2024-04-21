@@ -63,6 +63,11 @@ var (
 		Help: "The total number of requests to /",
 	}, []string{"path"})
 
+	indexDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "index_duration_seconds",
+		Help: "The index page handler duration in seconds",
+	}, []string{"path"})
+
 	indexPathBucketMilliseconds = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name:    "index_path_response_bucket",
 		Help:    "Histogram of / response times in seconds",
@@ -73,6 +78,7 @@ var (
 func init() {
 	prometheus.MustRegister(cpuTemp)
 	prometheus.MustRegister(indexPathTotal)
+	prometheus.MustRegister(indexDurationSeconds)
 	prometheus.MustRegister(indexPathBucketMilliseconds)
 	prometheus.MustRegister(pingPathTotal)
 	prometheus.MustRegister(pingPathBucketMilliseconds)
@@ -117,8 +123,10 @@ func index(c *gin.Context) {
 		"title": "GoGinAir",
 	})
 
-	indexPathBucketMilliseconds.
-		Observe(float64(time.Since(start).Seconds()))
+	dur := time.Since(start).Seconds()
+
+	indexDurationSeconds.WithLabelValues("/").Set(dur)
+	indexPathBucketMilliseconds.Observe(dur)
 }
 
 func ping(c *gin.Context) {
@@ -131,7 +139,7 @@ func ping(c *gin.Context) {
 	})
 
 	pingPathBucketMilliseconds.
-		Observe(float64(time.Since(start).Seconds()))
+		Observe(time.Since(start).Seconds())
 }
 
 func healthz(c *gin.Context) {

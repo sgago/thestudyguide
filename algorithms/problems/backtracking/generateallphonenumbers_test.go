@@ -31,21 +31,16 @@ Output: ["jm","jn","jo","km","kn","ko","lm","ln","lo"]
 So, we can tackle this with either looping or recursion.
 */
 
-func TestGenerateAllPhoneNumbers_56(t *testing.T) {
+func TestGenerateAllPhoneNumbersLooping_56(t *testing.T) {
 	actual := generateAllPhoneNumbersLooping("56")
 
 	fmt.Println(actual)
 }
 
-func TestGenerateAllPhoneNumbers_919(t *testing.T) {
+func TestGenerateAllPhoneNumbersLooping_919Z(t *testing.T) {
 	actual := generateAllPhoneNumbersLooping("919Z")
 
 	fmt.Println(actual)
-}
-
-type phoneNumState struct {
-	num string
-	idx int
 }
 
 var (
@@ -60,6 +55,11 @@ var (
 		"9": {"W", "X", "Y", "Z"},
 	}
 )
+
+type phoneNumState struct {
+	num string
+	idx int
+}
 
 func generateAllPhoneNumbersLooping(phone string) []string {
 	n := len(phone)

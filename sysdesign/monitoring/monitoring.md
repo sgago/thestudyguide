@@ -34,7 +34,7 @@ response_status{path="/articles"}
 
 ## Metric types
 Prometheus supplies four different types of metrics: counters, gauges, histograms, and summaries.
-- *Counters* are a simple, single metric that can only be incremented or reset to zero, and are used to count total number of requests or total number of tasks completed. Most counters are suffixed with `_total` like `http_requests_total` or `jobs_completed_total`. Counters aren't super helpful by themselves; more information can be gather from them when querying with the `rate()` function.
+- *Counters* are a simple, single metric that can only be incremented or reset to zero, and are used to count total number of requests or total number of tasks completed. Most counters are suffixed with `_total` like `http_requests_total` or `jobs_completed_total`. Counters aren't super helpful by themselves; more information can be gather from them when querying with the `rate` function.
 - *Gauges* are also simple, single values but these values can go up and down, and are used for CPU utilization, temperature, RAM usage, and so on. Unlike counters, we can use gauges directly on graphs.
 - *Histograms* are used to measure the frequency of values following into predefined buckets, and can be used for request response time, job completion time, and similar. This is useful for say serving requests within 300ms for 95% of all requests. Prometheus uses default buckets of .005, .01, .025, .05, .075, .1, .25, .5, .75, 1, 2.5, 5, 7.5, and 10 though they can be changed.
 - *Summaries* are basically the same as histograms, but the values are collected client-side. This yields better accuracy but is more resource intensive. Histograms are typically preferred.
@@ -100,7 +100,7 @@ cpu_temperature_celsius offset 1m
 cpu_temperature_celsius offset 7d
 ```
 
-We can then use 
+We can then use the following to make sure the current CPU temperature does not exceed 10% of the minute-old temperature.
 ```
 cpu_temperature_celsius > 1.10 * cpu_temperature_celsius offset 1m
 ```
@@ -146,7 +146,26 @@ In PromQL, where V is value and T is time, this can be expressed as
 rate = (Vcurr - Vprev) / (Tcurr - Tprev)
 ```
 
+Note that `rate` should not be applied to gauges that go up and down. `rate` also strips metric names but does leave labels.
 
+## Arithmetic
+PromQL supports the usual arithmetic and comparison operators:
+- addition (+)
+- subtraction (-)
+- multiplication (*)
+- division (/)
+- modulo (%)
+- power (^)
+- equal (==)
+- not equal (!=)
+- greater (>)
+- greater-or-equal (>=)
+- less (<)
+- less-or-equal (<=)
+
+Using multiple metrics requires understanding the *matching rules* PromQL uses:
+1. Arithmetic operators strip metric names and keeps the labels.
+2. PromQL will search for matching labels. If none are found, that time series is dropped.
 
 ## References
 - Gabriel Tanner has a great blog on getting setup with Go, Prometheus, and Grafana that I followed [here](https://gabrieltanner.org/blog/collecting-prometheus-metrics-in-golang/). Very easy to follow.

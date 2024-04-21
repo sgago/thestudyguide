@@ -1,6 +1,9 @@
 package grid
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Cell[T any] struct {
 	Row int
@@ -14,17 +17,22 @@ type Grid[T any] struct {
 	cells []Cell[T]
 }
 
-func New[T any](rows int, cols int) Grid[T] {
-	return Grid[T]{
+func New[T any](rows int, cols int) *Grid[T] {
+	g := &Grid[T]{
 		rows:  rows,
 		cols:  cols,
 		cells: make([]Cell[T], rows*cols),
 	}
+
+	for i := 0; i < len(g.cells); i++ {
+		g.cells[i].Row = i / rows
+		g.cells[i].Col = i % rows
+	}
+
+	return g
 }
 
-func NewInit[T any](rows int, cols int, init T) Grid[T] {
-	g := New[T](rows, cols)
-
+func (g *Grid[T]) Initialize(rows int, cols int, init T) *Grid[T] {
 	for i := 0; i < len(g.cells); i++ {
 		g.cells[i].Val = init
 	}
@@ -32,9 +40,9 @@ func NewInit[T any](rows int, cols int, init T) Grid[T] {
 	return g
 }
 
-func From1D[T any](rows int, x []T) Grid[T] {
+func From1D[T any](rows int, x []T) *Grid[T] {
 	if len(x)%rows > 0 {
-		panic("the slices must be of equal length; len(x)%3 must equal 0")
+		panic("the rows must be of equal length; len(x)%rows must equal 0")
 	}
 
 	cols := len(x) / rows
@@ -49,14 +57,14 @@ func From1D[T any](rows int, x []T) Grid[T] {
 		})
 	}
 
-	return Grid[T]{
+	return &Grid[T]{
 		rows:  rows,
 		cols:  cols,
 		cells: cells,
 	}
 }
 
-func From2D[T any](x [][]T) Grid[T] {
+func From2D[T any](x [][]T) *Grid[T] {
 	g := Grid[T]{
 		rows: len(x),
 		cols: len(x[0]),
@@ -76,30 +84,10 @@ func From2D[T any](x [][]T) Grid[T] {
 		}
 	}
 
-	return g
+	return &g
 }
 
-func (g *Grid[T]) ValidRow(r int) bool {
-	if r < 0 || r >= g.rows {
-		return false
-	}
-
-	return true
-}
-
-func (g *Grid[T]) ValidCol(c int) bool {
-	if c < 0 || c >= g.cols {
-		return false
-	}
-
-	return true
-}
-
-func (g *Grid[T]) Cells() []Cell[T] {
-	return g.cells
-}
-
-func (g *Grid[T]) Values() []T {
+func (g *Grid[T]) Vals() []T {
 	return ctov(g.cells)
 }
 
@@ -115,118 +103,132 @@ func (g *Grid[T]) Cols() int {
 	return g.cols
 }
 
-func (g *Grid[T]) Index(r int, c int) int {
-	return r*g.cols + c
+func (g *Grid[T]) Get(r, c int) T {
+	return g.GetCell(r, c).Val
 }
 
-func (g *Grid[T]) RowIndexes(r int) (int, int) {
-	return r * g.cols, r*(g.cols) + g.cols
-}
-
-func (g *Grid[T]) Get(r, c int) Cell[T] {
-	if !g.ValidRow(r) {
+func (g *Grid[T]) Set(r int, c int, x T) *Grid[T] {
+	if !g.validRow(r) {
 		panic(fmt.Sprintf("row %d is out of range", r))
-	} else if !g.ValidCol(c) {
+	} else if !g.validCol(c) {
 		panic(fmt.Sprintf("column %d is out of range", c))
 	}
 
-	return g.cells[g.Index(r, c)]
+	g.cells[g.idx(r, c)].Val = x
+
+	return g
 }
 
-func (g *Grid[T]) GetValue(r, c int) T {
-	if !g.ValidRow(r) {
+func (g *Grid[T]) Row(r int) []T {
+	return ctov(g.RowCells(r))
+}
+
+func (g *Grid[T]) Col(c int) []T {
+	return ctov(g.ColCells(c))
+}
+
+func (g *Grid[T]) Neighbors(r int, c int) []T {
+	return ctov(g.NeighborCells(r, c))
+}
+
+func (g *Grid[T]) LastRow() []T {
+	return g.Row(g.rows - 1)
+}
+
+func (g *Grid[T]) LastCol() []T {
+	return g.Col(g.cols - 1)
+}
+
+func (g *Grid[T]) Last() T {
+	return g.cells[len(g.cells)-1].Val
+}
+
+func (g *Grid[T]) Cells() []Cell[T] {
+	return g.cells
+}
+
+func (g *Grid[T]) GetCell(r, c int) Cell[T] {
+	if !g.validRow(r) {
 		panic(fmt.Sprintf("row %d is out of range", r))
-	} else if !g.ValidCol(c) {
+	} else if !g.validCol(c) {
 		panic(fmt.Sprintf("column %d is out of range", c))
 	}
 
-	return g.cells[g.Index(r, c)].Val
+	return g.cells[g.idx(r, c)]
 }
 
-func (g *Grid[T]) SetValue(r int, c int, x T) {
-	if !g.ValidRow(r) {
-		panic(fmt.Sprintf("row %d is out of range", r))
-	} else if !g.ValidCol(c) {
-		panic(fmt.Sprintf("column %d is out of range", c))
+func (g *Grid[T]) SetCell(c Cell[T]) *Grid[T] {
+	if !g.validRow(c.Row) {
+		panic(fmt.Sprintf("row %d is out of range", c.Row))
+	} else if !g.validCol(c.Col) {
+		panic(fmt.Sprintf("column %d is out of range", c.Col))
 	}
 
-	g.cells[g.Index(r, c)].Val = x
+	g.cells[g.idx(c.Row, c.Col)] = c
+
+	return g
 }
 
-func (g *Grid[T]) Row(r int) []Cell[T] {
-	if !g.ValidRow(r) {
+func (g *Grid[T]) RowCells(r int) []Cell[T] {
+	if !g.validRow(r) {
 		panic(fmt.Sprintf("row %d is out of range", r))
 	}
 
-	start, end := g.RowIndexes(r)
+	start, end := g.rowIdx(r)
 	return g.cells[start:end]
 }
 
-func (g *Grid[T]) RowValues(r int) []T {
-	return ctov(g.Row(r))
-}
-
-func (g *Grid[T]) Col(c int) []Cell[T] {
-	if !g.ValidCol(c) {
+func (g *Grid[T]) ColCells(c int) []Cell[T] {
+	if !g.validCol(c) {
 		panic(fmt.Sprintf("column %d is out of range", c))
 	}
 
 	cells := make([]Cell[T], 0, g.cols)
 
 	for i := 0; i < g.rows; i++ {
-		cells = append(cells, g.Get(i, c))
+		cells = append(cells, g.GetCell(i, c))
 	}
 
 	return cells
 }
 
-func (g *Grid[T]) ColValues(c int) []T {
-	return ctov(g.Col(c))
-}
-
-func (g *Grid[T]) Neighbors(r int, c int) []Cell[T] {
-	if !g.ValidRow(r) {
+func (g *Grid[T]) NeighborCells(r int, c int) []Cell[T] {
+	if !g.validRow(r) {
 		panic(fmt.Sprintf("row %d is out of range", r))
-	} else if !g.ValidCol(c) {
+	} else if !g.validCol(c) {
 		panic(fmt.Sprintf("column %d is out of range", c))
 	}
 	neighbors := make([]Cell[T], 0)
 
 	if r-1 >= 0 {
-		neighbors = append(neighbors, g.Get(r-1, c))
+		neighbors = append(neighbors, g.GetCell(r-1, c))
 	}
 
 	if c+1 < g.cols {
-		neighbors = append(neighbors, g.Get(r, c+1))
+		neighbors = append(neighbors, g.GetCell(r, c+1))
 	}
 
 	if r+1 < g.rows {
-		neighbors = append(neighbors, g.Get(r+1, c))
+		neighbors = append(neighbors, g.GetCell(r+1, c))
 	}
 
 	if c-1 >= 0 {
-		neighbors = append(neighbors, g.Get(r, c-1))
+		neighbors = append(neighbors, g.GetCell(r, c-1))
 	}
 
 	return neighbors
 }
 
-func (g *Grid[T]) NeighborValues(r int, c int) []T {
-	return ctov(g.Neighbors(r, c))
-}
-
-func (g *Grid[T]) Sub(r1, c1, r2, c2 int) Grid[T] {
-	if !g.ValidRow(r1) {
+func (g *Grid[T]) Sub(r1, c1, r2, c2 int) *Grid[T] {
+	if !g.validRow(r1) {
 		panic(fmt.Sprintf("r1 %d is out of range", r1))
-	} else if !g.ValidRow(r2) {
+	} else if !g.validRow(r2) {
 		panic(fmt.Sprintf("r2 %d is out of range", r2))
-	} else if !g.ValidCol(c1) {
+	} else if !g.validCol(c1) {
 		panic(fmt.Sprintf("c1 %d is out of range", c1))
-	} else if !g.ValidCol(c2) {
+	} else if !g.validCol(c2) {
 		panic(fmt.Sprintf("c2 %d is out of range", c2))
-	}
-
-	if r1 >= r2 {
+	} else if r1 >= r2 {
 		panic("r2 must be greater than r1")
 	} else if c1 >= c2 {
 		panic("c2 must be greater than c1")
@@ -238,14 +240,40 @@ func (g *Grid[T]) Sub(r1, c1, r2, c2 int) Grid[T] {
 	cells := make([]Cell[T], 0, rows*cols)
 
 	for i := r1; i < r2+1; i++ {
-		cells = append(cells, g.Row(i)[c1:c2+1]...)
+		cells = append(cells, g.RowCells(i)[c1:c2+1]...)
 	}
 
-	return Grid[T]{
+	return &Grid[T]{
 		rows:  rows,
 		cols:  cols,
 		cells: cells,
 	}
+}
+
+func (g *Grid[T]) String() string {
+	var sb strings.Builder
+
+	for r := 0; r < g.rows; r++ {
+		sb.WriteString(fmt.Sprint(g.Row(r), "\n"))
+	}
+
+	return sb.String()
+}
+
+func (g *Grid[T]) idx(r int, c int) int {
+	return r*g.cols + c
+}
+
+func (g *Grid[T]) rowIdx(r int) (int, int) {
+	return r * g.cols, r*(g.cols) + g.cols
+}
+
+func (g *Grid[T]) validRow(r int) bool {
+	return r >= 0 && r < g.rows
+}
+
+func (g *Grid[T]) validCol(c int) bool {
+	return c >= 0 && c < g.cols
 }
 
 func ctov[T any](cells []Cell[T]) []T {

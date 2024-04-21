@@ -9,6 +9,7 @@
         "cacheable",
         "CQRS",
         "CRDTs",
+        "cyclomatic",
         "datagram",
         "Errorf",
         "goginair",

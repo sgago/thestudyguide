@@ -12,8 +12,8 @@ func TestGrid(t *testing.T) {
 	for i := 0; i < 3*3; i++ {
 		r, c := i/3, i%3
 
-		g.SetValue(r, c, i)
-		val := g.GetValue(r, c)
+		g.Set(r, c, i)
+		val := g.Get(r, c)
 
 		assert.Equal(t, i, val)
 	}
@@ -30,7 +30,7 @@ func TestFrom2D(t *testing.T) {
 
 	for i := 0; i < 3*3; i++ {
 		r, c := i/3, i%3
-		val := g.GetValue(r, c)
+		val := g.Get(r, c)
 		assert.Equal(t, i, val)
 	}
 }
@@ -42,7 +42,7 @@ func TestFrom1D(t *testing.T) {
 
 	for i := 0; i < 3*3; i++ {
 		r, c := i/3, i%3
-		val := g.GetValue(r, c)
+		val := g.Get(r, c)
 		assert.Equal(t, i, val)
 	}
 }
@@ -57,7 +57,7 @@ func TestSub(t *testing.T) {
 	g := From2D(s)
 	sub := g.Sub(1, 1, 2, 2)
 
-	assert.Equal(t, []int{4, 5, 7, 8}, sub.Values())
+	assert.Equal(t, []int{4, 5, 7, 8}, sub.Vals())
 }
 
 func TestRow(t *testing.T) {
@@ -68,7 +68,7 @@ func TestRow(t *testing.T) {
 	}
 
 	g := From2D(s)
-	col := g.RowValues(1)
+	col := g.Row(1)
 
 	assert.Equal(t, []int{3, 4, 5}, col)
 }
@@ -81,7 +81,7 @@ func TestCol(t *testing.T) {
 	}
 
 	g := From2D(s)
-	col := g.ColValues(1)
+	col := g.Col(1)
 
 	assert.Equal(t, []int{1, 4, 7}, col)
 }
@@ -94,7 +94,7 @@ func TestMiddleNeighbors(t *testing.T) {
 	}
 
 	g := From2D(s)
-	neighbors := g.NeighborValues(1, 1)
+	neighbors := g.Neighbors(1, 1)
 
 	assert.Equal(t, []int{1, 5, 7, 3}, neighbors)
 }
@@ -107,7 +107,7 @@ func TestUpperLeftCornerNeighbors(t *testing.T) {
 	}
 
 	g := From2D(s)
-	neighbors := g.NeighborValues(0, 0)
+	neighbors := g.Neighbors(0, 0)
 
 	assert.Equal(t, []int{1, 3}, neighbors)
 }
@@ -120,7 +120,7 @@ func TestBottomRightCornerNeighbors(t *testing.T) {
 	}
 
 	g := From2D(s)
-	neighbors := g.NeighborValues(2, 2)
+	neighbors := g.Neighbors(2, 2)
 
 	assert.Equal(t, []int{5, 7}, neighbors)
 }
