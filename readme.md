@@ -1,6 +1,6 @@
 # The Study Guide
 
-Welcome to my personal study guide for leetcode problems, system design, napkin math, and more.
+Welcome to the study guide for leetcode problems, system design, napkin math, and more.
 - [Data structures and algorithms](./algorithms/algorithms.md)
 - [Distributed systems](./sysdesign/sysdesign.md)
 - [Napkin math](./sysdesign/napkinmath.md)

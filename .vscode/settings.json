@@ -1,4 +1,8 @@
 {
+    "code-runner.executorMap": {
+        "python":"$pythonPath $fullFileName"
+    },
+
     "cSpell.words": [
         "Ackermann",
         "Apigee",
@@ -45,5 +49,8 @@
         "subproblems",
         "traefik",
         "walkie"
-    ]
+    ],
+
+    "java.project.sourcePaths": ["src"],
+    "java.debug.settings.onBuildFailureProceed": true
 }

@@ -1,0 +1,26 @@
+
+services:
+  jobmanager:
+    image: flink:1.19.0-scala_2.12
+    hostname: jobmanager
+    container_name: jobmanager
+    ports:
+      - "8081:8081"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+    command: jobmanager
+
+  taskmanager:
+    image: flink:1.19.0-scala_2.12
+    hostname: taskmanager
+    container_name: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+    depends_on:
+      - jobmanager
+    command: taskmanager
