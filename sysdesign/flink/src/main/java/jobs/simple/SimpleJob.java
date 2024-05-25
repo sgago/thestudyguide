@@ -1,17 +1,17 @@
-package jobs.duplicate;
+package jobs.example;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-public class DuplicateStreamJob {
+public class SimpleJob {
     public static void main(String[] args) throws Exception {
         Configuration conf = new Configuration();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
 
-        DataStream<Person> flintstones = env.fromElements(
+        DataStream<Person> flintstones = env.fromData(
                 new Person("Fred", 35),
                 new Person("Wilma", 35),
                 new Person("Pebbles", 2),
@@ -19,7 +19,7 @@ public class DuplicateStreamJob {
 
         DataStream<Person> adults = flintstones.filter(new FilterFunction<Person>() {
             @Override
-            public boolean filter(Person person) throws Exception {
+            public boolean filter(Person person) {
                 return person.age >= 18;
             }
         });
@@ -44,3 +44,4 @@ public class DuplicateStreamJob {
         }
     }
 }
+
