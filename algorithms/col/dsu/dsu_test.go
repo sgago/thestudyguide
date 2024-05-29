@@ -26,7 +26,7 @@ func TestFind(t *testing.T) {
 
 	fmt.Println(dsu)
 
-	actual, err := dsu.Root(3)
+	actual, err := dsu.Find(3)
 
 	fmt.Println(dsu)
 

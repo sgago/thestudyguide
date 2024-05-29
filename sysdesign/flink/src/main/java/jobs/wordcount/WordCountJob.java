@@ -1,5 +1,7 @@
 package jobs.wordcount;
 
+import functions.flatmap.StringTokenizerFlatMapFunction;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
@@ -15,6 +17,8 @@ public class WordCountJob {
         Configuration conf = new Configuration();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
+
+        env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         final ParameterTool params = ParameterTool.fromArgs(args);
 
@@ -33,8 +37,10 @@ public class WordCountJob {
 
         final DataStream<Tuple2<String, Integer>> wordCounts = text
                 .flatMap(new StringTokenizerFlatMapFunction())
-                .keyBy(x -> x)
-                .flatMap(new WordCountFlatMapFunction());
+                .name("tokenizer")
+                .keyBy(x -> x.f0)
+                .sum(1)
+                .name("count");
 
         wordCounts.print();
 

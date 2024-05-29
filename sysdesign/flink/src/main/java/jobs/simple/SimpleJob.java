@@ -1,4 +1,4 @@
-package jobs.example;
+package jobs.simple;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.configuration.Configuration;
@@ -17,12 +17,8 @@ public class SimpleJob {
                 new Person("Pebbles", 2),
                 new Person("Whatever", 99));
 
-        DataStream<Person> adults = flintstones.filter(new FilterFunction<Person>() {
-            @Override
-            public boolean filter(Person person) {
-                return person.age >= 18;
-            }
-        });
+        DataStream<Person> adults = flintstones.filter(
+                (FilterFunction<Person>) person -> person.age >= 18);
 
         adults.print();
 
