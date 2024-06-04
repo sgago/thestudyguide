@@ -131,8 +131,8 @@ func bottomUp(tri [][]int) int {
 			rightNum := tri[i][j+1] + prev
 
 			dp.
-				SetMin(i, j, leftNum).
-				SetMin(i, j+1, rightNum)
+				Min(i, j, leftNum).
+				Min(i, j+1, rightNum)
 		}
 
 		// Lesson learned: Watch out, you don't need to keep

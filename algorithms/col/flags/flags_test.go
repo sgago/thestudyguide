@@ -1,4 +1,4 @@
-package bitflags
+package flags
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 
 func TestBitFlags(t *testing.T) {
 	flags := New32(64)
-	assert.Zero(t, flags.CountOnes())
+	assert.Zero(t, flags.Ones())
 
 	flags.Set(0, true)
 	assert.True(t, flags.Get(0))
@@ -19,6 +19,6 @@ func TestBitFlags(t *testing.T) {
 	assert.False(t, flags.Get(63))
 	assert.False(t, flags.Get(64))
 
-	assert.Equal(t, 2, flags.CountOnes())
-	assert.Equal(t, 94, flags.CountZeros())
+	assert.Equal(t, 2, flags.Ones())
+	assert.Equal(t, 94, flags.Zeros())
 }

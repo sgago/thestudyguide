@@ -2,7 +2,7 @@ package dynamicprogramming
 
 import (
 	"fmt"
-	"sgago/thestudyguide/col/bitflags"
+	"sgago/thestudyguide/col/flags"
 	"sgago/thestudyguide/col/grid"
 	"slices"
 	"testing"
@@ -16,10 +16,13 @@ import (
 =================================
 This is an in-depth guide for thinking through and solving dynamic programming (DP).
 This guide assumes that you're decently comfortable with
-- Using Go to run programs and/or tests.
-- 1D and 2D slices/arrays in Go.
+- Using Go to run programs and/or tests
+- 1D and 2D slices/arrays in Go
 - Formulas like
-- Big 0 notation and time complexity (TC).
+- Big 0 notation, time complexity (TC), and space complexity (SC)
+- Binary searches
+- Trees
+- DFS, backtracking, and memoization
 
 Let's get started.
 
@@ -123,17 +126,13 @@ func Test_SumASlice_TheDpWay_NoComments(t *testing.T) {
 
 /*
 =================================
-WHY DID YOU SUM NUMBERS LIKE THAT!? IT LOOKS DUMB. WHY WOULD ANYONE DO THIS?
+03. WHY DID YOU SUM NUMBERS LIKE THAT!? IT LOOKS DUMB. WHY WOULD ANYONE DO THIS?
 =================================
 I know, I know. Hang in there. Again, DP is about filling up a slice with
 answers to subproblems where one element has the final answer we're looking for.
 
-
 Now, there's a couple of things you're going to want to get used to
 doing *before* starting to actually code out a DP solution.
-
-0. DETERMINE IF YOU CAN USE DP OR NOT
-XXXXXXXXXXXXXXXXXXX
 
 1. FIGURE OUT THE DP MEMO
 For many problems, it's basically the same thing as whatever the problem is asking for.
@@ -177,7 +176,7 @@ So, stated more generally, our recurrence relation is dp[n] = dp[n-1] + nums[n].
 
 /*
 =================================
-FIND THE MAX NUMBER
+04. FIND THE MAX NUMBER
 =================================
 In this example, we show how you can get the max value in a slice "the DP way".
 This introduces another important concept in DP: dealing with "overlap".
@@ -218,7 +217,7 @@ func Test_FindTheMaxNumber(t *testing.T) {
 
 /*
 =================================
-MINIMUM PATH SUM
+05. MINIMUM PATH SUM
 =================================
 This problem will introduce us to solving DP problems with 2D slices.
 
@@ -713,7 +712,7 @@ func Test_TheDivisorGame_MemoryOptimizations(t *testing.T) {
 	// bit flags struct already. It'll pick uint 8, 16, 32, or 64 for you
 	// and append more unsigned integers as needed. Dynamic resizing from
 	// smaller to larger sizes, like uint8 to uint16, is planned for future/never.
-	dp := bitflags.New(n + 1)
+	dp := flags.New(n + 1)
 	dp.Set(0, false)
 	dp.Set(1, false)
 	dp.Set(2, true)

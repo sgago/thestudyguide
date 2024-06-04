@@ -40,11 +40,10 @@ func Test_DelayBeforeExiting(t *testing.T) {
 }
 
 func Test_BasicChannels(t *testing.T) {
-	// This is a channel, it let's us communicate
-	// with many goroutines.
+	// This is a channel, it lets us communicate with many goroutines.
 	ch := make(chan string)
 
-	// Don't do stuff like this, you'll get deadlock errors
+	// Warning: Don't do stuff like this, you'll get deadlock errors
 	//ch <- 123
 	//val := <-ch
 
@@ -59,7 +58,7 @@ func Test_BasicSynchronizationWithChannels(t *testing.T) {
 	ch := make(chan int)
 
 	// Note: You could just share ch here instead of passing
-	// it as a param, but a chan param demonstrates would be more typical.
+	// it as a param, but a chan param would be more typical.
 	go func(msg string, c chan int) {
 		for i := 0; ; i++ {
 			fmt.Println(msg, <-c) // Boring func waits until i is sent

@@ -2,8 +2,8 @@ package smalleststringwithswaps
 
 import (
 	"fmt"
-	"sgago/thestudyguide/col/bitflags"
 	"sgago/thestudyguide/col/dsu"
+	"sgago/thestudyguide/col/flags"
 	"sgago/thestudyguide/col/queue"
 	"strings"
 	"testing"
@@ -144,7 +144,7 @@ func smallestStringWithSwaps(s string, pairs [][]int) string {
 	}
 
 	// m*(|V| + |E|) dfs
-	done := bitflags.New(len(s))
+	done := flags.New(len(s))
 	for i := 0; i < len(s); i++ {
 		smallest := getSmallest(s, i, graph, done)
 		done.Set(smallest, true)
@@ -155,7 +155,7 @@ func smallestStringWithSwaps(s string, pairs [][]int) string {
 	return sb.String()
 }
 
-func getSmallest(s string, key int, graph map[int][]int, done bitflags.Flags) int {
+func getSmallest(s string, key int, graph map[int][]int, done flags.Flags) int {
 	neighbors := graph[key]
 
 	if len(neighbors) == 0 {
@@ -164,7 +164,7 @@ func getSmallest(s string, key int, graph map[int][]int, done bitflags.Flags) in
 
 	smallest := -1
 
-	visited := bitflags.New(len(graph))
+	visited := flags.New(len(graph))
 	visited.Set(key, true)
 
 	q := queue.New[int](len(graph))

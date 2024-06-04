@@ -65,7 +65,7 @@ func (m *Dp[K, T]) Get(k1, k2 K) (T, bool) {
 	return (*m)[k1][k2], true
 }
 
-func (m *Dp[K, T]) SetMin(k1, k2 K, x T) *Dp[K, T] {
+func (m *Dp[K, T]) Min(k1, k2 K, x T) *Dp[K, T] {
 	if _, ok := (*m)[k1]; !ok {
 		(*m)[k1] = make(map[K]T)
 		(*m)[k1][k2] = x
@@ -78,7 +78,7 @@ func (m *Dp[K, T]) SetMin(k1, k2 K, x T) *Dp[K, T] {
 	return m
 }
 
-func (m *Dp[K, T]) SetMax(k1, k2 K, x T) *Dp[K, T] {
+func (m *Dp[K, T]) Max(k1, k2 K, x T) *Dp[K, T] {
 	if _, ok := (*m)[k1]; !ok {
 		(*m)[k1] = make(map[K]T)
 		(*m)[k1][k2] = x

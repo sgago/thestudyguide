@@ -1,9 +1,9 @@
-// Package bitflags implements boolean flagging via a
+// Package flags implements boolean flagging via a
 // slice of unsigned integers and bitmasking.
 // It is intended to replace arrays or slices of booleans.
 // Useful for graph searches to avoid cycles or combinatorial
 // problems with use-once-values.
-package bitflags
+package flags
 
 import "math"
 
@@ -13,13 +13,16 @@ type UInt interface {
 
 type Flags interface {
 	Get(pos int) bool
+
 	Set(pos int, val bool)
+	True(pos int)
+	False(pos int)
 
 	Toggle(pos int)
 	ToggleAll()
 
-	CountOnes() int
-	CountZeros() int
+	Ones() int
+	Zeros() int
 }
 
 type BitFlags[T UInt] struct {
@@ -92,6 +95,14 @@ func (f *BitFlags[T]) Set(pos int, val bool) {
 	}
 }
 
+func (f *BitFlags[T]) True(pos int) {
+	f.Set(pos, true)
+}
+
+func (f *BitFlags[T]) False(pos int) {
+	f.Set(pos, false)
+}
+
 func (f *BitFlags[T]) Toggle(pos int) {
 	idx := pos / f.size
 	bit := pos % f.size
@@ -99,24 +110,24 @@ func (f *BitFlags[T]) Toggle(pos int) {
 	f.bits[idx] = toggle(f.bits[idx], bit)
 }
 
-func (f *BitFlags[T]) CountOnes() int {
+func (f *BitFlags[T]) ToggleAll() {
+	for i, n := range f.bits {
+		f.bits[i] = toggleAll(n, f.maxVal)
+	}
+}
+
+func (f *BitFlags[T]) Ones() int {
 	sum := 0
 
 	for _, n := range f.bits {
-		sum += countOnes(n)
+		sum += ones(n)
 	}
 
 	return sum
 }
 
-func (f *BitFlags[T]) CountZeros() int {
-	return (len(f.bits) * f.size) - f.CountOnes()
-}
-
-func (f *BitFlags[T]) ToggleAll() {
-	for i, n := range f.bits {
-		f.bits[i] = toggleAll(n, f.maxVal)
-	}
+func (f *BitFlags[T]) Zeros() int {
+	return (len(f.bits) * f.size) - f.Ones()
 }
 
 func get[T UInt](n T, pos int) bool {
@@ -131,7 +142,7 @@ func clear[T UInt](n T, pos int) T {
 	return n & ^(1 << pos)
 }
 
-func countOnes[T UInt](n T) int {
+func ones[T UInt](n T) int {
 	cnt := 0
 
 	for ; n > 0; cnt++ {
