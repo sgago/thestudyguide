@@ -3,7 +3,7 @@ FROM golang:latest
 WORKDIR /app
 
 # Install air for live reloading
-RUN go install github.com/cosmtrek/air@latest
+RUN go install github.com/air-verse/air@latest
 
 # Copy the files we need from our local project to the work directory (WORKDIR)
 COPY . .

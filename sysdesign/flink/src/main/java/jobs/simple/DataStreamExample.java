@@ -5,7 +5,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-public class SimpleJob {
+public class InMemory {
     public static void main(String[] args) throws Exception {
         Configuration conf = new Configuration();
         StreamExecutionEnvironment env =
