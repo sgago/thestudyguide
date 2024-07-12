@@ -1,11 +1,23 @@
 services:
+  # The official v2 Traefik docker image
+  traefik:
+    image: traefik:v2.11
+    command: --api.insecure=true --providers.docker # Enables the web UI and tells Traefik to listen to docker
+    ports:
+      - "80:80" # Expose traefik's entry port
+      - "8080:8080" # Expose traefik's dashboard
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Lets traefik can listen to the Docker events
+    networks:
+      - goginair-net
+
   zoo1:
     image: zookeeper
     restart: unless-stopped
     hostname: zoo1
-    ports:
-      - 2181:2181 # Port 2181 is the client connection port
     expose:
+      - 2181 # Port 2181 is the client port
       - 2888 # Port 2888 is the quorum port, used by leader to communicate with followers
       - 3888 # Port 3888 is the election port to vote for a leader
     environment:
@@ -13,14 +25,15 @@ services:
       ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
     networks:
       - zoo-net
+    labels:
+      - "traefik.enable=false"
 
   zoo2:
     image: zookeeper
     restart: unless-stopped
     hostname: zoo2
-    ports:
-      - 2182:2181
     expose:
+      - 2181
       - 2888
       - 3888
     environment:
@@ -28,14 +41,15 @@ services:
       ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
     networks:
       - zoo-net
+    labels:
+      - "traefik.enable=false"
 
   zoo3:
     image: zookeeper
     restart: unless-stopped
     hostname: zoo3
-    ports:
-      - 2183:2181
     expose:
+      - 2181
       - 2888
       - 3888
     environment:
@@ -43,21 +57,41 @@ services:
       ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
     networks:
       - zoo-net
+    labels:
+      - "traefik.enable=false"
 
   goginair:
     build:
       context: ./
       dockerfile: dockerfile
-    container_name: goginair-zookeeper
+    expose:
+      - 8080
+    deploy:
+      replicas: 3
     restart: unless-stopped
-    ports:
-      - '8080:8080'
     networks:
+      - goginair-net
       - zoo-net
-    # Important to bind/mount your codebase dir to /app dir for live reload
     volumes:
-      - ./:/app
+      - ./:/app # Important to bind/mount your codebase dir to /app dir for live reload
+    environment:
+      - ZOO_SERVERS=zoo1:2181,zoo2:2181,zoo3:2181
+    labels:
+      # Tells traefik to route requests to goginair
+      - "traefik.enable=true"
+
+      # And this tells traefik the routing rules
+      # You can route to specific host names and url paths
+      - "traefik.http.routers.api.rule=Host(`goginair.docker.localhost`)"  # Replace with your desired domain
+
+      # And this specifies which ports to route requests to
+      - "traefik.http.services.api.loadbalancer.server.port=8080"  # goginair listens on port 8080
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
 
 networks:
   zoo-net:
     driver: bridge
+  goginair-net:

@@ -2,7 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"sgago/goginair-zookeeper/config"
+	"sgago/goginair-zookeeper/leader"
+	"sgago/goginair-zookeeper/participant"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,36 +15,67 @@ import (
 )
 
 const (
-	pingPath    = "/ping"
-	healthzPath = "/healthz"
-	nodePath    = "/node"
-
-	zkNode = "localhost:21811"
-	zkPath = "/test"
+	// URL Paths
+	pingPath         = "/ping"
+	healthzPath      = "/healthz"
+	nodePath         = "/node"
+	leaderPath       = "/leader"
+	participantsPath = "/participants"
 )
 
 func main() {
 	r := gin.Default()
 
 	r.GET(healthzPath, healthz)
-	r.GET(pingPath, ping)
 	r.GET(nodePath, node)
+	r.GET(leaderPath, isLeader)
+	r.GET(participantsPath, allParticipants)
+
+	conn, _ /*event*/, err := zk.Connect(config.ZkServers(), time.Second*10)
+	if err != nil {
+		panic(err)
+	}
+
+	defer conn.Close()
+
+	if err := participant.Join(conn); err != nil {
+		log.Fatal(err)
+	}
+
+	go leader.Election(conn)
 
 	r.Run()
-}
-
-func ping(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "pong",
-	})
 }
 
 func healthz(c *gin.Context) {
 	c.Writer.WriteHeader(http.StatusOK)
 }
 
+func isLeader(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"hostName": config.HostName(),
+		"isleader": leader.IsLeader(),
+	})
+}
+
+func allParticipants(c *gin.Context) {
+	conn, _ /*event*/, err := zk.Connect(config.ZkServers(), time.Second*10)
+	if err != nil {
+		panic(err)
+	}
+
+	participants, err := participant.All(conn)
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"participants": participants,
+	})
+}
+
 func node(c *gin.Context) {
-	conn, _, err := zk.Connect([]string{"zoo1:2181"}, time.Second*10)
+	conn, _ /*event*/, err := zk.Connect(config.ZkServers(), time.Second*10)
 	if err != nil {
 		panic(err)
 	}
@@ -51,4 +86,9 @@ func node(c *gin.Context) {
 	}
 
 	fmt.Printf("%+v %+v\n", children, stat)
+
+	c.JSON(http.StatusOK, gin.H{
+		"children": children,
+		"stat":     stat,
+	})
 }

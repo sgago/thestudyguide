@@ -5,7 +5,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-public class InMemory {
+public class DataStreamExample {
     public static void main(String[] args) throws Exception {
         Configuration conf = new Configuration();
         StreamExecutionEnvironment env =
@@ -18,7 +18,7 @@ public class InMemory {
                 new Person("Whatever", 99));
 
         DataStream<Person> adults = flintstones.filter(
-                (FilterFunction<Person>) person -> person.age >= 18);
+            (FilterFunction<Person>) p -> p.age >= 18);
 
         adults.print();
 

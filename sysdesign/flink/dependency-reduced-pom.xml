@@ -111,36 +111,18 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-table-api-java-bridge</artifactId>
+      <artifactId>flink-connector-files</artifactId>
       <version>1.19.0</version>
       <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <artifactId>flink-table-api-java</artifactId>
-          <groupId>org.apache.flink</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>flink-table-api-bridge-base</artifactId>
-          <groupId>org.apache.flink</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>flink-java</artifactId>
-          <groupId>org.apache.flink</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>flink-streaming-java</artifactId>
-          <groupId>org.apache.flink</groupId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-clients</artifactId>
+      <artifactId>flink-test-utils</artifactId>
       <version>1.19.0</version>
-      <scope>provided</scope>
+      <scope>test</scope>
       <exclusions>
         <exclusion>
-          <artifactId>flink-core</artifactId>
+          <artifactId>flink-test-utils-junit</artifactId>
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
@@ -148,32 +130,40 @@
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>flink-optimizer</artifactId>
+          <artifactId>flink-core</artifactId>
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-cli</artifactId>
-          <groupId>commons-cli</groupId>
+          <artifactId>flink-rpc-akka-loader</artifactId>
+          <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>flink-java</artifactId>
-          <groupId>org.apache.flink</groupId>
+          <artifactId>junit-jupiter</artifactId>
+          <groupId>org.junit.jupiter</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>assertj-core</artifactId>
+          <groupId>org.assertj</groupId>
         </exclusion>
         <exclusion>
           <artifactId>flink-streaming-java</artifactId>
           <groupId>org.apache.flink</groupId>
         </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-connector-files</artifactId>
-      <version>1.19.0</version>
-      <scope>provided</scope>
-      <exclusions>
         <exclusion>
-          <artifactId>flink-file-sink-common</artifactId>
+          <artifactId>flink-statebackend-rocksdb</artifactId>
           <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>flink-statebackend-changelog</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>flink-dstl-dfs</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>curator-test</artifactId>
+          <groupId>org.apache.curator</groupId>
         </exclusion>
       </exclusions>
     </dependency>
