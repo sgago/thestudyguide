@@ -114,23 +114,24 @@ Like Redis or Memcached.
 ## Hashing
 
 ## Common HTTP status codes
-Code | Name | Description
---- | --- | ---
-200 | OK | Indicates the request succeeded.
-201 | Created | XXXXXXX
-202 | Accepted | XXXXXX
-204 | No content | XXXXXXX
-307 | Temporary redirect | XXXXXX
-308 | Permanent redirect | XXXXXXX
-400 | Bad request | XXXXXX
-401 | Unauthorized | XXXXXX
-403 | Forbidden | XXXXXXX
-404 | Not found | XXXXXXX
-408 | Timeout | XXXXXXX
-409 | Conflict | XXXXXX
-429 | Too many requests | XXXXXXX
-500 | Internal server error | XXXXXX
-501 | Not implemented | XXXXXXX
-502 | Bad gateway | XXXXXXXX
-503 | Service unavailable | XXXXXXX
-504 | Gateway timeout | XXXXXXX
+| Code | Name                    | Description                                                |
+|------|-------------------------|------------------------------------------------------------|
+| 200  | OK                      | Indicates the request succeeded.                           |
+| 201  | Created                 | The request has been fulfilled and resulted in a new resource being created. |
+| 202  | Accepted                | The request has been accepted for processing, but the processing has not been completed. |
+| 204  | No content              | The server successfully processed the request, but there is no content to send in the response. |
+| 307  | Temporary redirect      | The requested resource resides temporarily under a different URI, and the client should continue to use the original URI for future requests. |
+| 308  | Permanent redirect      | The requested resource has been permanently moved to a new URI, and future requests should use the new URI. |
+| 400  | Bad request             | The server could not understand the request due to invalid syntax. |
+| 401  | Unauthorized            | The request requires user authentication.                  |
+| 403  | Forbidden               | The server understood the request, but it refuses to authorize it. |
+| 404  | Not found               | The server could not find the requested resource.           |
+| 408  | Timeout                 | The server timed out waiting for the request.               |
+| 409  | Conflict                | The request could not be completed due to a conflict with the current state of the resource. |
+| 429  | Too many requests       | The user has sent too many requests in a given amount of time ("rate limiting"). |
+| 500  | Internal server error   | The server encountered an unexpected condition that prevented it from fulfilling the request. |
+| 501  | Not implemented         | The server does not support the functionality required to fulfill the request. |
+| 502  | Bad gateway             | The server, while acting as a gateway or proxy, received an invalid response from the upstream server. |
+| 503  | Service unavailable     | The server is currently unable to handle the request due to a temporary overload or maintenance of the server. |
+| 504  | Gateway timeout         | The server, while acting as a gateway or proxy, did not receive a timely response from the upstream server or some other auxiliary server. |
+

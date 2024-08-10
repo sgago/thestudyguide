@@ -1,14 +1,15 @@
 # System design
-1. The network is reliable;
-2. Latency is zero;
-3. Bandwidth is infinite;
-4. The network is secure;
-5. Topology doesn't change;
-6. There is one administrator;
-7. Transport cost is zero;
-8. The network is homogeneous.
 
-From [Fallacies of distributed computing](https://en.wikipedia.org/wiki/Fallacies_of_distributed_computing)
+> 1. The network is reliable;
+> 2. Latency is zero;
+> 3. Bandwidth is infinite;
+> 4. The network is secure;
+> 5. Topology doesn't change;
+> 6. There is one administrator;
+> 7. Transport cost is zero;
+> 8. The network is homogeneous.
+> 
+> – [Fallacies of distributed computing](https://en.wikipedia.org/wiki/Fallacies_of_distributed_computing)
 
 - [System design](#system-design)
   - [Communication](#communication)
@@ -120,7 +121,7 @@ Also, TCP is on it's way out and being replaced by [QUIC](https://en.wikipedia.o
 Building and communicating routing tables lies with BGP. BGP maps out routes for forwarding packets along. Note that BGP is concerned about the minimum number of "hops"; it doesn't concern itself with congestion or latency.
 
 ChatGPT says,
-> "Absolutely! Let's imagine the internet is like a big neighborhood with houses (which are computer networks) that want to talk to each other. Now, each house has its own unique address, just like how each computer network on the internet has its own address.
+> "Let's imagine the internet is like a big neighborhood with houses (which are computer networks) that want to talk to each other. Now, each house has its own unique address, just like how each computer network on the internet has its own address.
 
 Now, Border Gateway Protocol, or BGP, is like the system that helps these houses (networks) know how to talk to each other. Imagine if you want to send a letter to your friend's house in another part of the neighborhood. You need to know the best way to get there, right?
 
@@ -150,7 +151,7 @@ The TCP handshake introduces a full round-trip before any app data is sent. Unti
 Closing the connection, on the other hand, involves multiple round-trips. Additionally, if another connection might occur soon, it doesn't make sense to close the connection so it might stay open.
 
 #### Closing and the TIME_WAIT
-Sockets, and the resources they consume, do not immediately close. The enter a waiting state, where late arriving segments are dropped, so that they aren't considered part of a new connection. If you try to open and close many sockets (ports) in a tight loop, you can hit resource exhaustion on ports.
+Sockets, and the resources they consume, do not immediately close. They enter a waiting state, where late arriving segments are dropped, so that they aren't considered part of a new connection. If you try to open and close many sockets (ports) in a tight loop, you can hit resource exhaustion on ports.
 
 #### Established connections and congestion control
 Once communication is started, the sender tries to avoid bombing the receiver with a ton of data. The receiver will shoot back it's buffer size to the sender, so that it doesn't get overwhelmed. TCP is rate-limited just like rate limiting on API key or IP address.

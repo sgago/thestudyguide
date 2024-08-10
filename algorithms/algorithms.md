@@ -1,5 +1,11 @@
 # Algorithms and data structures
 
+> "There are only two hard things in computer science: cache invalidation and naming things."
+> – Phil Karlton
+
+> "Algorithms are like jokes. If you have to explain them, they’re not that good."
+> – Unknown
+
 - [Algorithms and data structures](#algorithms-and-data-structures)
 - [Math](#math)
 - [Runtimes](#runtimes)
@@ -18,8 +24,10 @@
   - [Amortized](#amortized)
   - [Time complexity math](#time-complexity-math)
   - [Tricks](#tricks)
+  - [Pedantic sidenote](#pedantic-sidenote)
 - [Hash functions and maps](#hash-functions-and-maps)
   - [Common hash functions](#common-hash-functions)
+  - [Crypto package in Go](#crypto-package-in-go)
   - [Pigeonhole principle](#pigeonhole-principle)
   - [References](#references)
 - [Sorting](#sorting)
@@ -64,13 +72,19 @@
     - [Compare-and-swap](#compare-and-swap)
 
 # Math
-There's some math to brush up on first. Most of it's high-school level, fortunately!
-- **Logarithms:** To what power must we raise a certain base to get a number? We frequently deal with base Log base 2 here, which tells us how many times we need to multiply a number to reach a certain value. For example, `Log2(8) = 3` (`8 = 2 * 2 * 2 = three 2's`) reads like, "How many times do we need to multiple 2 to get 8?". Be aware of context! In mathematics classes, we usually assume Log base 10 when the log base is omitted, but for computers we are *probably* assuming Log base 2!
+There's some math to brush up on before diving in. Most of it's high-school level, fortunately!
+- **Logarithms:** To what power must we raise a certain base to get a number? We frequently deal with base Log base 2 here, which tells us how many times we need to multiply a number to reach a certain value. For example, `Log2(8) = 3` (`8 = 2 * 2 * 2 = three 2's`) reads, "How many times do we need to multiple 2 to get 8?". Be aware of context! In math classes, we usually assume Log base 10 when the base is omitted, but for programming we are *probably* assuming Log base 2!
 - **Permutations and factorials:** These come up in combinatorial problems and similar. Say we want to count the number of unique ways we can arrange the letters a, b, and c. There's 6 possible ways (sequences): `3 * 2 * 1` or `3!`. Rarely, does something more complicated come up, but it does happen like with [shuffle sharding](#shuffle-sharding). For example, with a total of 6 items, how many ways can we arrange them in groups of two? This is given by `6!/(2!4!) = 15` or `N!/R!(N - R)!` where `N` is the total elements and `R` is the size of the subsets.
 - **Arithmetic sequences** An arithmetic sequence is a sequence of numbers where the difference between consecutive terms is constant. Like `1, 2, 3, 4, 5` or `2, 4, 5, 8, 10`. The sum of an arithmetic sequence can be quickly calculated with `(first_element + last_element) * number_of_elements / 2`.
 
 # Runtimes
-How long an algorithm takes to run for a given input. Also called "time complexity" or "TC" for short.
+Runtimes clue us into how long an algorithm takes to runs as the number of inputs increase.
+These runtimes are expressed via Big O notation like O(1) or O(N^2).
+
+For example,
+- O(1) tells us that our code runs for about the same amount of time independent of inputs.
+- O(2^N) tells us that our code's runtime will increase very rapidly with the number of inputs.
+Runtimes may also be called "time complexity" or "TC" for short.
 
 ## Summary
 Runtime | Name | Example
@@ -82,7 +96,7 @@ Runtime | Name | Example
 `O(N)` | Linear | Traverse array, tree traversal
 `O(KN)` | K Linear | Performing a linear operation K times
 `O(N + M)` | Linear NM | Traverse array, tree traversal on two separate collections
-`O(V + E)` | Graph | Traverse graph with V vertices and E edges (dropped vertical bars around V and E cause the make markdown mad)
+`O(V + E)` | Graph | Traverse graph with V vertices and E edges, is actually O(|V|+|E|) but `|` make markdown mad
 `O(NlogN)` | Sort | Quick and merge sort, divide n' conquer
 `O(N^2)` | Quadratic | Nested loops
 `O(2^N)` | Exponential | Combinatorial, backtracking, permutations
@@ -184,13 +198,13 @@ Note, this one is harder to analyze at first.
 Grows insanely rapidly. Only solvable for small N and typically requires memoization.
 - Combinatorial problems, backtracking, permutations.
 
-Note, this one is hard to analyze/spot at first.
+Note, this one can be hard to analyze/spot at first.
 
 ## Amortized
 Amortized time, meaning to gradually write off the initial time costs, if an operation is rarely done. For example, if we had N^2*N tasks, we could consider the solution O(N) instead of O(N^2) = N*O(1) * O(N) if we only do the N^2 task rarely. For example, if we dynamically size an array one time at startup.
 
 ## Time complexity math
-N is *sort of* like infinity. It swallows smaller N terms and constants. Unlike infinity however, we're trying to indicate something about how long it takes to run a function as N gets larger and larger. N does not swallow up other N values or variables if multiplication is involved, like with NlogN, N^2, KNlogN, etc. N does swallow constants and reduce; for example, 5 * N * N reduces to 5N^2 and N^2 swallows the 5, so the TC is just N^2. Finally, N does swallow smaller factors if addition is used; example is N! + N^2 is just N!. The N! grows much faster than N^2.
+N is *sort of* like infinity. It swallows smaller N terms and constants. Unlike infinity however, we're trying to indicate how long it takes to run a function as N gets larger and larger. N does not swallow up other N values or variables if multiplication is involved, like with NlogN, N^2, KNlogN, etc. N does swallow constants and reduce; for example, 5 * N * N reduces to 5N^2 and N^2 swallows the 5, so the TC is just N^2. Finally, N does swallow smaller factors if addition is used; example is N! + N^2 is just N!. The N! grows much faster than N^2.
 - 2N -> N
 - N + logN -> N
 - NlogN -> NlogN
@@ -202,7 +216,7 @@ Note that, like the other runtimes, we ignore constant factors and lower order t
 Again, TC is trying to tell us how our function behaves as N increases in size. So, just because N^2 + N reduces to N^2, that N term we dropped still impacts our runtime.
 
 ## Tricks
-The maximum number of elements, usually noted in the constraints, will give you *clues* about the runtime and *maybe* the corresponding solution. Why? The leetcode runners are docker containers with a very short shelf life by design. There's a maximum number of operations they'll let your run. If your code takes too long, then leetcode will kill your container and return a time limit expired (TLE) error. So, they actually have to limit the number of input elements.
+The maximum number of elements, usually noted in the constraints, will give you *clues* about the runtime and *maybe* the corresponding solution. Why? The leetcode runners are docker containers with a very short shelf life by design. There's a maximum number of operations they'll let your code run. If your code takes too long, then leetcode will kill your container and return a time limit expired (TLE) error. So, they actually have to limit the number of input elements.
 
 N Constraint | Runtimes | Description
 --- | --- | ---
@@ -211,10 +225,28 @@ N < 20 | 2^N or N! | Brute force or backtracking.
 3000 < N < 10^6 | O(N) or O(NlogN) | 2 pointers, greedy, heap, and sorting.
 N > 10^6 | O(logN) or O(1) | Binary search, math, cycle sort adjacent problems.
 
-Again, guessing the optimal solution from the size of input elements constraint is certainly error prone. This could *suggest a maybe solution*.
+Again, guessing the optimal solution from the size of input elements constraint is certainly error prone. This could *maybe suggest a solution for you maybe*.
+
+## Pedantic sidenote
+Skip this section if your new to Big O notation.
+
+In business, we often use "Big O" loosely to talk about how an algorithm performs in the average or worst case. We typically want to quickly communicate the expected runtime without writing a ten page white paper on the topic. In academia, however, the business definition is closer to *Big Theta* which covers the expected-case.
+
+You see, Big O actually describes the worst complexity of an algorithm-not the expected case-using an upper bound. Take a loop like
+```go
+func pedanticComplexity() {
+  for i := 0; i < N; i++ {
+    // Constant time work
+  }
+}
+```
+
+The complexity down not grow faster than N for large inputs; likewise, it's not wrong to say that the loop doesn't grow faster than N^2. N is a tighter, more restrictive bound. N^2 is less accurate but not *technically* wrong. We typically strive to provide the tightest bounds, but this is one of the reasons why Big O gets confusing in informal discussions.
+
+This guide is focused on getting a job in industry, not academia. As such, it will use the looser Big O definition to keep the circus moving. This guide will take it one step further and drop O and paraentheses and simply say N^2 or NLogN.
 
 # Hash functions and maps
-In short, a hash function converts arbitrary sized data into a fixed value, typically an Int32. For example, summing all integers in an array and mod'ing them by 100. We convert a bunch of data or text into a smaller, ergonomic number.
+A hash function converts arbitrary sized data into a fixed value, typically an Int32. For example, summing all integers in an array and mod'ing them by 100. We convert a bunch of data or text into a smaller, ergonomic number.
 
 Typically, you don't have to write hash functions from scratch outside of, say, for `GetHashcode` for C# objects or similar.
 
@@ -234,6 +266,20 @@ Argon2 | Password hashing function designed to be resistant to brute force or di
 MurmurHash | Fast an efficient non cryptographic has. Useful for hash tables.
 CRC | Cyclic redundancy check. Non cryptographic. Fast, but not used for security. Typically, the CRC is appended to messages, like HTTP, to check for corruption.
 MD5 | Fast 128 bit hash, but no longer recommended for security.
+
+## Crypto package in Go
+You can use the `crypto` package in go
+```go
+data := []byte("hello world")
+
+hash := sha256.New()  // Create a new SHA256 hash
+hash.Write(data) // Write the data to the hash
+hashSum := hash.Sum(nil) // Compute the hash sum, the final hash value as a byte slice
+hashHex := hex.EncodeToString(hashSum) // Convert the hash sum to a hexadecimal string
+
+// Output the result
+fmt.Printf("SHA256 hash: %s\n", hashHex)
+```
 
 ## Pigeonhole principle
 Collisions are unavoidable, so we need to design around it. For example, if "anne" and "john" created the same hash, we'd overwrite the same hash table entry. To avoid this, we can use [separate chaining](https://en.wikipedia.org/wiki/Hash_table#Separate_chaining) or other strategies.
@@ -709,17 +755,19 @@ When deciding between BFS or DFS to explore graphs, choose BFS for shortest dist
 DFS is better at using less memory for wide graphs (graphs with large breadth of factors). Put another way, BFS stores the breadth of the graph as it searches. DFS is also better at finding nodes that are far away such as a maze exit.
 
 # Dynamic programming
+There's simply nothing "dynamic" about dynamic programming (DP). The name is a misnomer. These problems can be quite challenging to wrap your mind around at first.
+
+In DP, all you're trying to do is fill up a 1D or 2D array up with solutions to subproblems such that some slice element has the final solution to the entire problem in it. All the other elements will be solutions to subproblems. If the subproblem overlap, we'll need to pick the best solution.
+
 A problem can be solved via dynamic programming (DP) if
 1. The problem can be divided into sub-problems
 2. The sub-problems from bullet 1 overlap
 
-To put DP simply, all you're trying to do is fill up a 1D or 2D array up with solutions to subproblems such that some slice element has the final solution to the entire problem in it. All the other elements will be solutions to subproblems.
-
-Ultimately, when solving DP problems, we're trying to develop the *recurrence relation* and it is simply critical. For example, the recurrence relation to tabulate any Fibonacci number into a `dp` memo is `dp[i] = dp[i - 1] + dp[i - 2]`.
+Ultimately, when solving DP problems, we're trying to develop the *recurrence relation* and it is critical. For example, the recurrence relation to tabulate any Fibonacci number into a `dp` memo is `dp[i] = dp[i - 1] + dp[i - 2]`.
 
 To be blunt, some recurrence relations just aren't obvious. Take finding the longest increasing subsequence (LIS). The recurrence relation from is `lis(i) = max(lis(i-1), lis(i-2) ... lis(0))` but only for `nums at i-1, i-2, ..., 0 < num at i`. One of the easier ways to figure this out is just to write out your `dp` memo for every loop iteration for some example they give you.
 
-For example, when I started to solve the longest increasing subsequence [here](./algorithms/problems/dynamic_programming/bottom_up/longest_increasing_subsequence/longest_increasing_subsequence_test.go), I just started to write out the entire memo and gave myself some notes like:
+For example, when I started to solve the longest increasing subsequence [here](./algorithms/problems/dynamic_programming/bottom_up/longest_increasing_subsequence/longest_increasing_subsequence_test.go), I wrote out the entire memo and gave myself some notes like:
 ```
 1 1 1 _ 1 1 1 _ 1 1 1  <- Our initial dp memo
 1 2 1 _ 1 1 1 _ 1 1 1  <- 0 to 1 is a LIS of 2.
@@ -737,10 +785,12 @@ nums[i] > nums[prev_i], because otherwise it wouldn't be only increasing numbers
 
 The notes are ugly, but they get the job done.
 
-Really, DP is typically similar in efficiency to DFS + memoization + pruning. Pruning is important, to save space and reduced wasted calculations. We typically call DP *bottom-up* and DFS + memoization + pruning *top-down*.
+Really, DP is typically similar in efficiency to DFS + memoization + pruning.  We typically call DP *bottom-up* and DFS + memoization + pruning *top-down*. While these algorithms can solve the same problems they typically have different applicaitons and strengths.
+- DFS is typically more generic and is helpful for exploring trees and graphs. You'll typically see if for combinatorial problems, mazes, or exploring a graph.
+- DP is helpful for overlapping subproblemms with optimal structure. You'll see this used for knapsack problems and longest sequence problems and so on.
 
 ## Strategy for DP
-Broadly speaking, if this is your first sojourn in DP-land, the big question you're trying to answer is "How the !@#$ do I fill up this slice such that one of the values has the final answer?"
+Again, with DP you're trying to fill up a slice with answers to subproblems, often having to determine what to do if there's overlap when saving to same spot.
 
 To begin solving DP problems, we can answer some basic questions:
 1. What goes in our memo? It's typically the same thing whatever the problem is asking for. For example, if the problem is asking for counts of something, then we're memoizing counts. If it's asking for maximum values, then we memoize maximum values. You might also need to determine here if you need a 1D or 2D memo.
@@ -960,7 +1010,7 @@ Honestly, if this was a production need, I would say it depends on the problem a
 
 Broadly speaking, from my personal practice, I prefer looping. Why?
 - After solving n-million DFS problems with recursion I always end up with a public and private function. The private function that actually does the DFS has an issue with tons of telescoping parameters and it's unclear which of these are inputs and outputs. Invariably, I want to change the order, add a complex type, or simply get confused about which parameters are for what. Eventually, you just decide to slap all the parameters into a state struct because it's easier to modify and use. No need to worry about the order struct fields appear in!
-- After solving n-million DP problems, the recurrence relation, the formula that gets you to dp[next] from dp[previous states], is hard to spot yet critical to figure out. Let me put this another way with bold text because it's important. **You 100% need to develop the recurrence relation formula for getting from a previous state to the next state. You need to do this in a reasonable amount of time. If you have the recurrence relation, you have almost everything you need. If you don't have the recurrence relation, you have nothing. If you don't have the recurrence relation, don't bother starting to code anything. This is all or nothing development - you either have the whole thing or you don't.** Again, you will 100% absolutely need to type out the the entire dp memo as it loops via comments, starting with the initial conditions. And solving one or two subproblems is just not enough to see the solution in its entirety. You need to type out like 5 to 10 iterations and learn how to solve problems that overlap. If you don't type it out, the recurrence relation will be hard to see.
+- After solving n-million DP problems, the recurrence relation, the formula that gets you to `dp[next]` from `dp[previous]`, is hard to spot yet critical to figure out. Let me put this another way with bold text because it's important. **You 100% need to develop the recurrence relation formula for getting from a previous state to the next state. You need to do this in a reasonable amount of time. If you have the recurrence relation, you have almost everything you need. If you don't have the recurrence relation, you have nothing. If you don't have the recurrence relation, don't bother starting to code anything. This is all or nothing development - you either have the whole thing or you don't.** Again, you will 100% absolutely need to type out the the entire dp memo as it loops via comments, starting with the initial conditions. And solving one or two subproblems is just not enough to see the solution in its entirety. You need to type out like 5 to 10 iterations and learn how to solve problems that overlap. If you don't type it out, the recurrence relation will be hard to see.
 
 Again, top-down looping feels like it lends itself to iterative problem solving. It feels consistent even though it might not always be faster than DP. With DP, you're going to get a unique recurrence relation and memo every time.
 1. Read the problem, determine WTF is going on.

@@ -18,7 +18,6 @@ This is an in-depth guide for thinking through and solving dynamic programming (
 This guide assumes that you're decently comfortable with
 - Using Go to run programs and/or tests
 - 1D and 2D slices/arrays in Go
-- Formulas like
 - Big 0 notation, time complexity (TC), and space complexity (SC)
 - Binary searches
 - Trees
@@ -26,24 +25,22 @@ This guide assumes that you're decently comfortable with
 
 Let's get started.
 
-The name "dynamic programming" is 100% a misnomer because there's simply nothing
-"dynamic" about it all. I would name it "fill up an array with answers to subproblems"
-but that's a little long. Sarcasm aside, if you're new to DP, the basic idea really
-is to fill up an array (or slice) such that an element has the final answer.
+The name "dynamic programming" is 100% misnomer. There's nothing "dynamic" about it.
+I would name it "fill up an array with answers to subproblems"
+but that's a little long. Sarcasm aside, the rough idea really
+is to fill up a slice such that an element has the final answer in it.
 
 And, no, we're not going to start with annoying Fibonacci numbers that
 an ancient Italian mathematician came up with in like 1200 AD.
-
 I want to start with something simple. Dead. Simple.
-Summing up values in an array/slice is the dead simple we're going to start with.
+Summing up values in a slice is what we're going to start with.
 */
 
 /*
 =================================
 01. SUMMING A SLICE THE USUAL WAY
 =================================
-Again, we want to start simple; let's sum up integers in an array.
-This test case demonstrates how we can sum up integers in a slice.
+To begin easing into DP, let's sum up integers in an array the normal way.
 */
 func Test_SumASlice_TheUsualWay(t *testing.T) {
 	total := 0
@@ -60,17 +57,19 @@ func Test_SumASlice_TheUsualWay(t *testing.T) {
 =================================
 02. SUMMING A SLICE THE DP WAY
 =================================
+Boring as summing those numbers is, this is actually a basic
+DP problem and solution.
+
 The next test case demonstrates how to sum a slice "the DP way".
 
-Instead of using a single integer, we're going to fill up
-a slice. I always name the slice "dp". Each element in dp
-will hold the sum
+Instead of using a single integer, we're going to take a step in the
+"wrong" direction and use a slice to solve the problem.
+Each element will hold the sum of the previous numbers.
+I always name the slice "dp". The final element will hold our answer.
 
-The final element will hold our answer.
 In our first couple of DP problems, we're going to use a 1D slice.
 Later, we'll need to bust out 2D slices, but, those are problems for future us.
-
-In the first couple of examples, the last element in slice will have the answer.
+Also, the initial examples, the last element in slice will have the answer.
 This won't always be true, but, again, these are worries for future us.
 
 The problem wants us to find a sum, so our dp memo will also hold sums.
@@ -135,10 +134,11 @@ Now, there's a couple of things you're going to want to get used to
 doing *before* starting to actually code out a DP solution.
 
 1. FIGURE OUT THE DP MEMO
-For many problems, it's basically the same thing as whatever the problem is asking for.
+For many problems, it's *usually* the same thing as whatever the problem is asking for.
 - For summing a slice, we're asking for a sum, so our dp memo holds sums.
 - If the problem is asking for true/false (feasibility), then dp memo will hold booleans.
 - If the problem is asking for longest counts, then dp memo will hold integers of longest count of something
+- If the problem is asking for a sum of coin values, then the dp memo usually holds coin value sums.
 
 2. WRITE OUT THE DP MEMO STATES
 We need to type out our DP memo - even the 2D ones - and any notes you need.
@@ -159,11 +159,12 @@ Our dp[i] memo for summing a slice containing 1 2 3 4 5 will look like this:
 3. DECLARE YOUR RECURRENCE RELATION
 The entire goal of writing out the memo states is to a) get used
 to the problem itself by hitting it head on and b) developing the recurrence
-relation. The recurrence relation is a fancy name for the formula that gets our
-dp memo from initial conditions to dp[0] to dp[1] to dp[2] etc.
+relation. The recurrence relation is a fancy name for a formula that gets our
+dp memo from initial conditions to the next state, from dp[0] to dp[1] to dp[2] and so on.
 To be blunt, this formula is critical. Once you have
-and understand it, you've got a big part of the problem solved.
+and understand the recursion relation, you've got a big part of the problem solved.
 
+Let's backtrack to summing up values in a slice.
 For summing a slice, for each i-value, our recurrence relation is going to be
 dp[0] = dp[0] + nums[1] <- Or just nums[1] because dp[0] holds zero, initially
 dp[1] = dp[1] + nums[2]

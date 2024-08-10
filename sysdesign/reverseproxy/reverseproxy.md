@@ -1,7 +1,8 @@
 # Reverse Proxies
-In short, reverse proxies are go-betweens, like a facade or abstraction, that sit between a client and the backend. They are an abstraction, a facade, that sits in front of websites.
+Reverse proxies are go-betweens that sit between a client and the backend. They are an abstraction, a facade, that sits in front of websites.
 
 They can provide
+- Present unified view of microservice backend to clients
 - Load balancing
 - Security, like better DDoS protection
 - Caching
@@ -13,7 +14,7 @@ They can provide
 - Analytics
 - Request translation, say from HTTP to gRPC
 
-Acting as a gateway to a ton of disparate microservices, a reverse proxy as an API gateway provides these core services:
+Acting as a gateway to a ton of disparate microservices, a reverse proxy acting as an API gateway provides these core services:
 - *Routing* requests to the various services and allowing the internal microservices to change, hopefully without disrupting the public-facing side.
 - *Composing* data or requests among many disparate microservices. For example, orders and customer data could require two requests internally, but the public-facing side would only need to make one. It relieves clients from having to know about all the different microservices and how to query them.
 - *Translating* requests from one IPC mechanism to another. Say, converting a public HTTP request to an internal gRPC request or vice versa.
