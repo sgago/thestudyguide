@@ -1,0 +1,25 @@
+{
+    "name": "product-connector",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "tasks.max": "1",
+      "database.hostname": "postgres",
+      "database.port": "5432",
+      "database.user": "postgres",
+      "database.password": "postgres",
+      "database.dbname": "mycompany",
+      "database.server.name": "dbserver1",
+      "plugin.name": "pgoutput",
+      "publication.autocreate.mode": "filtered",
+      "slot.name": "debezium_slot",
+      "table.include.list": "public.products",
+      "tombstones.on.delete": "false",
+      "transforms": "unwrap",
+      "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+      "transforms.unwrap.add.headers": "operation",
+      "topic.prefix": "dbserver1",
+      "schema.history.internal.kafka.bootstrap.servers": "kafka:9092",  
+      "schema.history.internal.kafka.topic": "schema-changes.products"  
+    }
+  }
+  
