@@ -1,5 +1,4 @@
 # System design
-
 > 1. The network is reliable;
 > 2. Latency is zero;
 > 3. Bandwidth is infinite;
@@ -33,6 +32,8 @@
       - [Asynchronous HTTP responses](#asynchronous-http-responses)
       - [HTTP versions](#http-versions)
     - [Messaging](#messaging)
+      - [Dead Letter Queue](#dead-letter-queue)
+      - [Other Special Message Queues](#other-special-message-queues)
   - [Coordination](#coordination)
   - [Clocks](#clocks)
     - [CockroachDB transaction timestamps](#cockroachdb-transaction-timestamps)
@@ -42,7 +43,7 @@
       - [Sequential consistency](#sequential-consistency)
       - [Causal consistency](#causal-consistency)
         - [The CALM theorem](#the-calm-theorem)
-        - [Causal consistency with CALM](#causal-consistency-with-calm)
+        - [Causal consistency continued](#causal-consistency-continued)
       - [Causal+ consistency](#causal-consistency-1)
       - [Eventual consistency](#eventual-consistency)
     - [Transactions](#transactions)
@@ -101,21 +102,29 @@
 ## Communication
 [Top](#system-design)
 
-### The Internet protocol suite
-Here's a model of the abstraction layers of the internet. To be blunt, these layer models are totally bogus; however, they are helpful for conceptualizing the layers of abstraction in Internet communications.
+Communication is central to the Internet and distributed systems. To communicate, processes need to agree on a set of rules to determine how data is processed and transmitted.
 
-![](./diagrams/out/ip-protocol-suite/ip-protocol-suite.svg)
+### The Internet protocol suite
+We represent internet communications in stacks known as the Open System Interconnection (OSI) model, using a layered model. The layers help break down the complex processes into something more understandable. There's a lot of layers of abstraction here!
+
+Without further ago, here's the model:
+
+![Diagram of the IP protocol suite](../diagrams/out/ip-protocol-suite/ip-protocol-suite.svg)
+
+Note that I've skipped diagramming out the lower levels such as the physical and the data link layers. 
 
 - The **link layer** operates on local network links like Ethernet or WiFi and provides interfaces to the underlying network hardware. Switches operate at this layer and forward Ethernet packets based on their MAC addresses.
 - The **internet layer** routes packets based on their IP address. The IP protocol is core at this layer. Packets are delivered on a best-error can can be dropped, duplicated, corrupted, or arrive out of order. Routers work at this layer, forwarding packets along based on their IP. Note that MAC addresses allow packets to be forwarded from one machine to the next. IP addresses provide the start and end machines.
 - The **transport layer** transmits data between two processes. There are many processes on a machine that want to communicate and they do so through port numbers. TCP protocol is used at this layer and attempts make a reliable channel over an unreliable one (lol). Segments are given a number which lets the receiver know if packets are dropped, duplicated, or arriving out of order.
 - The **application layer** defines the high level communications like HTTP or DNS. Often, this is the target abstraction for our work.
 
-There are other layers: physical and data link. We'll briefly not them here:
+There are other layers: physical and data link. We'll briefly note them here:
 - Physical concerns itself with voltages, pins, cabling, wireless frequencies, etc.
 - Data link concerns itself with providing frames for the raw bits and provides some error correction/detection.
 
-Also, TCP is on it's way out and being replaced by [QUIC](https://en.wikipedia.org/wiki/QUIC), aka TCP/2, which multiplexes connections between two endpoints using UDP.
+To be blunt, these layer models are totally bogus; however, they are helpful for conceptualizing the layers of abstraction in Internet communications.
+
+It should also be noted that TCP is on its way out and being replaced by [QUIC](https://en.wikipedia.org/wiki/QUIC), aka TCP/2, which multiplexes connections between two endpoints using UDP. However, understanding TCP can help explain the motivations for implementing QUIC.
 
 ### Border gateway protocol (BGP)
 Building and communicating routing tables lies with BGP. BGP maps out routes for forwarding packets along. Note that BGP is concerned about the minimum number of "hops"; it doesn't concern itself with congestion or latency.
@@ -123,20 +132,18 @@ Building and communicating routing tables lies with BGP. BGP maps out routes for
 ChatGPT says,
 > "Let's imagine the internet is like a big neighborhood with houses (which are computer networks) that want to talk to each other. Now, each house has its own unique address, just like how each computer network on the internet has its own address.
 
-Now, Border Gateway Protocol, or BGP, is like the system that helps these houses (networks) know how to talk to each other. Imagine if you want to send a letter to your friend's house in another part of the neighborhood. You need to know the best way to get there, right?
+As ChatGPT says, BGP is like a map of the neighborhood for the Internet. It helps all the houses (networks) figure out the best paths to reach each other. Just like how you might have different routes to get to different places in your neighborhood, BGP helps networks find the best routes to send information (like emails, pictures, or web pages) to each other.
 
-BGP is like the map of the neighborhood for the internet. It helps all the houses (networks) figure out the best paths to reach each other. Just like how you might have different routes to get to different places in your neighborhood, BGP helps networks find the best routes to send information (like emails, pictures, or web pages) to each other.
-
-But here's the tricky part: BGP doesn't know about all the small streets and houses. It mainly knows about the big roads and major intersections (these are like the main connections between different internet providers). So, when a house wants to send something to another house, BGP helps them find the best path using these big roads.
+But here's the tricky part: BGP doesn't know about all the small streets and houses. It mainly knows about the big roads and major intersections (these are like the main connections between different internet providers). So, when a house wants to send something to another house, BGP helps them find the best path using the main roads.
 
 However, just like in a big neighborhood, sometimes things can change. Maybe a road is under construction, or a new road is built. BGP needs to quickly figure out these changes and update the map so that everyone can still send their information along the best paths.
 
 So, in simple terms, BGP is like the map that helps computer networks on the internet find the best paths to talk to each other, just like you finding the best way to get to your friend's house in your neighborhood."
 
 ### User datagram protocol (UDP)
-An alternative to TCP is UDP, a connection-less protocol that only sends discrete packets of a limited size. It's bare-bones and offers no reliability guarantees. UDP bootstraps other protocols, that want some but not all of TCP's guarantees.
+User datagram protocol (UDP) is an alternative to TCP. It is a connection-less protocol that only sends discrete packets of a limited size. It's bare-bones and offers no reliability guarantees. UDP typically bootstraps other protocols, that want some but not all of TCP's guarantees.
 
-Online multiplayer video games or video streaming may leverage UDP. There's no value in retrying, it would only degrade the user experience.
+Online multiplayer video games or video streaming may leverage UDP. There's no value in retrying when data is dropped because it would only degrade the user experience.
 
 ### Reliable communications
 TCP uses segments (not packets) that let receivers detect missing, duplicate, corrupted, and out of order data. Each segment is associated with a timer; if a receiver does not acknowledge the segment, it is resent.
@@ -146,7 +153,7 @@ Operating systems manage the **sockets** the store connection states: opening, e
 #### Opening and the TCP handshake
 The TCP handshake introduces a full round-trip before any app data is sent. Until a connection is opened the bandwidth is effectively zero. The faster a connection is established, the sooner communication can begin. Ergo, reducing round-trip time by moving servers next to each other reduces the cold start penalty.
 
-![](./diagrams/out/tcp-handshake/tcp-handshake.svg)
+![Diagram of the TCP handshake](../diagrams/out/tcp-handshake/tcp-handshake.svg)
 
 Closing the connection, on the other hand, involves multiple round-trips. Additionally, if another connection might occur soon, it doesn't make sense to close the connection so it might stay open.
 
@@ -208,7 +215,7 @@ Key values in the certificate are:
 Now, each certificate is chained to an issuing identity, another CA, that granted the certificate. This creates a chain of certificates. The top-level, final certificate is the root CA, like Let's Encrypt.
 
 Here's an example of a website (service), intermediate, and root CA chain.
-![](./diagrams/out/certificate-chain/certificate-chain.svg)
+![Diagram of the certificate chain](../diagrams/out/certificate-chain/certificate-chain.svg)
 
 We use a chain of certificates because:
 1. It creates a hierarchy of trust. Root CAs are typically installed into a client's OS.
@@ -249,7 +256,7 @@ In terms of resiliency, DNS is single point of failure since normal humans simpl
 Note that DNS used to be in plaintext, but now it uses TLS. Yay.
 
 ### Application programming interfaces
-Once we can create semi-reliable and secure connections, we can finally discuss having the client invoke operations on the server. Typically, this is done through application programming interfaces (APIs). APIs can be **direct** or **indirect**.
+Once we can create semi-reliable and secure connections, we can finally discuss having a client invoke operations on a server. Typically, this is done through application programming interfaces (APIs). APIs can be **direct** or **indirect**.
 Term | Definition | Example
 --- | --- | ---
 Direct | Client communicates directly with a server. | Request-response over HTTP or gRPC. Client sends a `GET /hello`, server responds with `200 OK Hi!`.
@@ -361,17 +368,13 @@ Similar to synchronous, the server receives a request, initiates processing, but
 #### HTTP versions
 
 ### Messaging
-Messaging is an indirect form of communication where data are passed through a message broker. This nicely decouples the the services. Messaging is typically suitable for processes that take a long time or require large amounts of data.
+Messaging is an indirect form of communication where data are passed through a message broker. This nicely decouples the services. Messaging is typically suitable for processes that take a long time or require large amounts of data.
 
 Pub/Sub, ServiceBus, and RabbitMQ, are all examples of message queue providers. Like HTTP requests, messages typically have header and body data as well as a unique message ID. Also, messages can be stored in JSON, protobuf, and so on. Some brokers even provide support for native objects like Azure. Messages are typically only removed from the broker once the consumer - the service that actually receives and uses the message -  successfully processes the message.
 
 However, unlike request-response via HTTP transactions, message queues are inherently asynchronous. Furthermore, messages can be queued within the broker even if the message consumers are down.
 
 Consumers can choose to process multiple messages at a time, a.k.a. batch processing or message batches. This increases processing latency of individual messages but does improve the applications throughput. This extra latency is typically an acceptable tradeoff and should be considered.
-
-Producers and consumers can be arranged in a few different ways:
-- Point-to-point (p2p): A message is delivered to exactly one consumer.
-- Publish-subscribe (pubsub): A message is delivered to all consumers.
 
 Message queues are not a silver bullet and there are many issues to consider:
 - The broker adds additional latency through additional the queue itself and more communication.
@@ -390,14 +393,22 @@ Message queues are not a silver bullet and there are many issues to consider:
 
 Producer and consumer messaging can be arranged in different styles or configurations, depending on the problem they're solving.
 
-1. One-way
-  - Producers can "fire n' forget" messages in a p2p configuration.
-2. Request-response
-  - Producers can send consumers requests through one message channel and receiver responses from consumers via another response channel. Consumers can tag responses with the request they're responding to and send feedback upstream.
-3. Broadcast
-  - Messages can be sent to all consumers. After all, there could be many consumers that care about the same message but for different reasons. For example, one consumer could send a confirmation email to the customer and another consumer could do payment processing.
+1. One-way - Producers can "fire n' forget" messages in a p2p configuration.
+2. Request-response - Producers can send consumers requests through one message channel and receiver responses from consumers via another response channel. Consumers can tag responses with the request they're responding to and send feedback upstream.
+3. Broadcast - Messages can be sent to all consumers. After all, there could be many consumers that care about the same message but for different reasons. For example, one consumer could send a confirmation email to the customer and another consumer could do payment processing.
 
 TODO: PlantUML diagrams on the different pub/sub topologies would be helpful here.
+
+#### Dead Letter Queue
+Not all messages are handled successfully. When this happens the message is retried. If it succeeds the next time, great. If it fails many times, the message will typically be placed into a special dead letter queue (DLQ). This stops the message from wasting more resources, gives engineering a chance to debug the issue, and lets the message be properly processed or disposed of.
+
+Each normal message queue typically has its own DLQ.
+
+#### Other Special Message Queues
+You other special types of queues.
+1. Poison queue - Messages may have malformed data or logic errors. For example, perhaps the JSON syntax of the message could be wrong. In this case, they can be sent to a poison queue for engineering to sort out.
+2. Retry queue - Some consumers may experience a service outage or network issue where the message is completely fine but needs to be retried much later. In this case, we could put messages into a retry queue to be sent to the consumer later.
+3. Audit queue - Some companies or projects could require more rigorous auditing and logging. In this case, we can employ an audit queue to store a copy of messages temporarily. Maybe we would only store a copy of "bad" messages or similar until a post-mortem is completed.
 
 ## Coordination
 [Top](#system-design)
@@ -480,7 +491,7 @@ increment(1), increment(1), increment(1) => 3
 
 Check out [Keeping Calm PDF](https://arxiv.org/pdf/1901.01930.pdf) for a much better and detailed description.
 
-##### Causal consistency with CALM
+##### Causal consistency continued
 Back to causal consistency. Causal maintains happened-before order (the causal order) among operations. This makes causal attractive for many applications because:
 - It's consistent "enough" and easier to work on the eventual consistency.
 - Allows building a system that's available and partition tolerant.
@@ -495,7 +506,7 @@ ChatGPT says,
 > "With causal consistency, you and your friends agree on some logical order for the messages. If you tell something important to Alice and then mention it to Bob, everyone knows that Alice got the message first. It's about maintaining the cause-and-effect relationship."
 
 #### Causal+ consistency
-TODO: Discuss causal+ and how it's different from Causal.
+TODO: Discuss causal+ and how it's different from Causal. We need to talk about CRDT types too.
 
 #### Eventual consistency
 Eventual consistency relaxes guarantees of strong and sequential. Given enough time, all nodes will converge to the same result. Note that, during updates or partitions, nodes may have different values. For example, reading from Server A and B may yield a stale, earlier result which is very confusing.
@@ -510,7 +521,7 @@ ChatGPT says,
 ### Transactions
 [Top](#system-design)
 
-Distributed transactions provide an illusion that all operations succeeded or none of them did. These are similar ot transactions used in a traditional SQL databases. Here's a simple MySQL transaction that get's data from table1, updates table2 with it, and commits the transaction. If the select or update fail, then the entire select+update operations are rolled back safely to a previous state.
+Distributed transactions provide an illusion that all operations succeeded or none of them did. These are similar to transactions used in a traditional SQL databases. Here's a simple MySQL transaction that get's data from table1, updates table2 with it, and commits the transaction. If the select or update fail, then the entire select+update operations are rolled back safely to a previous state.
 
 ```sql
 START TRANSACTION;
@@ -519,7 +530,7 @@ UPDATE table2 SET summary=@A WHERE type=1;
 COMMIT;
 ```
 
-Note that if the transaction is never finally committed via `COMMIT` or rolled back, you could give yourself a bad time. The transactions hold locks, create resource contention, and so on. So don't forget and make sure your SQL is somewhat speedy!
+Note that if the transaction is never finally committed via `COMMIT` or reversed via `ROLLBACK`, you could give yourself a bad time. The transactions hold locks, create resource contention, and so on. So don't forget and make sure your SQL is somewhat speedy!
 
 See more transaction usage in [MySQL](https://dev.mysql.com/doc/refman/8.0/en/commit.html) or [SQL Server](https://learn.microsoft.com/en-us/sql/t-sql/language-elements/transactions-transact-sql?view=sql-server-ver16).
 
@@ -534,7 +545,7 @@ ACID stands for atomicity, consistency, isolation, and durability.
 - **D**urability - Once we commit, any changes are persisted to storage and the DB won't lose data if it crashes. Again, this is an illusion and we need replication to stave off storage failures.
 
 Why are we ignoring consistency in ACID? Consistency is purportedly a property of the application, not the DB system:
-![](./imgs/consitency_in_acid.png)
+![Image of consistency in ACID, a side note](../imgs/consitency_in_acid.png)
 *From The Meaning of ACID, page 225, Chapter 7, Transactions.*
 
 Separately, DB marketing materials stating that they provide ACID might not actually be true. To be ACID compliant, typically the DB needs to support serializable isolation which can be a hit to performance ([here](http://www.bailis.org/blog/when-is-acid-acid-rarely/)). [Jepson.io](https://jepsen.io/analyses) provides some more analyses on which tools are actually ACID compliant or not.
@@ -543,13 +554,17 @@ For example, Cockroach's marketing material states ACID serializability, so it's
 
 And serializability is not the strongest guarantee we can make; however, that might be an acceptable tradeoff, as is the case with CockroachDB.
 
-![](./imgs/cockroachdb_acid_guarantee.png)
+![Image of CockroachDB website stating ACID guarantees](../imgs/cockroachdb_acid_guarantee.png)
 
 #### I is for Isolation
 Isolation gives us an illusion that transactions run one after another, as if they run in wall-clock order. This is inefficient, so typically transactions are run concurrently. As a result, we can get all kinds of race conditions. *Isolation levels* protect against these race conditions. However, as our isolation levels provide more protection, the less performant they become. Again, coordination has a cost.
 
 [Jepsen](https://jepsen.io/consistency) provides a really great, clickable chart with details on many kinds of DB consistency models. Here's an image of it:
-![DB consistency models diagram](./imgs/jepsen_io_consistency.png)
+![DB consistency models diagram](../imgs/jepsen_io_consistency.png)
+
+There's a lot of models, but we'll focus on the main ones.
+
+**Don't get these consistency models confused with consistency in distributed systems or in the CALM theorem. Context matters here!**
 
 ##### Serializability
 Serializability is a guarantee about a transaction or group of operations concerning more than one object, and still preserves the correctness of the database. However, unlike serializability, there are no real-time constraints on the ordering of transactions. Serializable operations are not composable or provide deterministic ordering of events. It only requires that some equivalent serial execution exists.
@@ -573,13 +588,12 @@ Google's Spanner has linearizability guarantees described [here](https://cloud.g
 ##### Strict Linearizability
 Strict Linearizability is linearizability + serializability. Transaction order corresponds to some serial execution order which corresponds to some real-time wall-clock ordering. All operations must follow an order, appear to occur instantaneously, and the system must exhibit a global, real-time ordering of all operations. Continuing with the prior example, if T1 happens before T2 in real-time, it is guaranteed that all clients will observe the deposit to the savings account before the debit from the checking account. This ensures a consistent, global order of operations, providing a strong guarantee of real-time consistency in the observed behavior of the distributed system.
 
-
 1. *Dirty writes* - A transaction overwrites the value of another transaction that hasn't committed yet. This race condition is stopped by *read uncommitted* isolation level.
 2. *Dirty reads* - A transaction reads the value of another transaction that hasn't committed yet. This race condition is stopped by *read committed* isolation level.
 3. *Fuzzy reads* - A transaction reads a value twice, but sees a different value between the two reads because a transaction changed the value between the reads. This race condition is stopped by *repeatable read* isolation level.
 4. *Phantom reads* - One transaction adds, updates, or deletes values while another tries to read them. This is stopped by *serializable* isolation level.
 
-![](./diagrams/out/acid-isolation-levels/acid-isolation-levels.svg)
+![Diagram of the acid isolation levels](../diagrams/out/acid-isolation-levels/acid-isolation-levels.svg)
 
 There are way more consistency models than those listed here. Jepsen.io has a great clickable diagram with many different consistency models, what they mean, how they relate to one another, and when they are available on an asynchronous network [here](https://jepsen.io/consistency). Really helpful diagram.
 
@@ -601,11 +615,11 @@ Static resources like CSS, JS, JSON, etc. don't typically change super often. Th
 
 The first time a client requests static resource, we can reply with the resource plus add a Cache-Control HTTP header with how long to keep the resource (time to live or TTL) and the ETag (resource version).
 
-![](./diagrams/out/http-cache-miss/http-cache-miss.svg)
+![Diagram of HTTP cache miss](../diagrams/out/http-cache-miss/http-cache-miss.svg)
 
 If the cache resource is stale (age > max-age), we'll request it from the server again. Otherwise, the next time the same resource is requested, we'll get it from the cache.
 
-![](./diagrams/out/http-cache-stale/http-cache-stale.svg)
+![Diagram of HTTP stale cache](../diagrams/out/http-cache-stale/http-cache-stale.svg)
 
 This is great because we simply added a HTTP header and reduced server load and boosted response time for the client. Unfortunately, we added eventual consistency, especially if the caching is poorly managed.
 
@@ -696,14 +710,14 @@ References:
 
 ChatGPT says,
 > "Let's imagine you want to get a toy from a toy store, but instead of going there yourself, you send your friend to bring it back for you. In this scenario, your friend is acting like a proxy.
-
-Now, there are two types of proxies: forward proxies and reverse proxies.
-
-Forward Proxy (like your friend going to the store): Imagine you want to visit different toy stores, but you don't want the stores to know it's you every time. So, you send your friend to the stores, and your friend brings the toys back to you. The stores only see your friend, not you. This is like a forward proxy; it helps you access different things on the internet without directly interacting with them.
-
-Reverse Proxy (like a helper at the toy store): Now, let's say you go to a huge toy store, and there's a helper at the entrance. Instead of going inside to get each toy yourself, you tell the helper what you want, and the helper gets the toys for you. The helper is like a reverse proxy because it helps you get what you need from the store without you having to go all the way in. In the internet world, a reverse proxy helps websites give you the things you want (like web pages or pictures) without you directly talking to the main server.
-
-In summary, proxies are like helpers or friends that help you get things from different places, and reverse proxies specifically help websites give you what you want without you having to go to the main server every time."
+> 
+>There are two types of proxies: forward proxies and reverse proxies.
+>
+>Now, a Forward Proxy (like your friend going to the store): Imagine you want to visit different toy stores, but you don't want the stores to know it's you every time. So, you send your friend to the stores, and your friend brings the toys back to you. The stores only see your friend, not you. This is like a forward proxy; it helps you access different things on the internet without directly interacting with them.
+>
+>Reverse Proxy (like a helper at the toy store): Now, let's say you go to a huge toy store, and there's a helper at the entrance. Instead of going inside to get each toy yourself, you tell the helper what you want, and the helper gets the toys for you. The helper is like a reverse proxy because it helps you get what you need from the store without you having to go all the way in. In the internet world, a reverse proxy helps websites give you the things you want (like web pages or pictures) without you directly talking to the main server.
+>
+>In summary, proxies are like helpers or friends that help you get things from different places, and reverse proxies specifically help websites give you what you want without you having to go to the main server every time."
 
 ### Content delivery networks (CDN)
 [Top](#system-design)
@@ -793,7 +807,7 @@ In terms of accessing blobs on AS, the account and file name in AS can be used t
 
 Monolithic architectures, a single large code base with all the business concerns in one code base, are often great for certain companies, teams, and projects. It's easy to coordinate changes, run the application, handle inter-process communication well, and lower complexity. At least initially. It's often recommended to start with a monolith and design with clear domains/boundaries.
 
-Monoliths struggle to scale in terms of service demands and programmer efficiency. Monoliths can become unwieldy if they grow overly large, and this is especially true if entropy is handled poorly. New features, understanding code, adding features, and bug fixing can grow to be hard. Suddenly, reverting a change becomes very hard and time consuming.
+Monoliths struggle to scale in terms of service demands and programmer efficiency. Monoliths can become unwieldy if they grow overly large, and this is especially true if entropy is handled poorly. New features, understanding code, adding features, and bug fixing can grow to be hard. Suddenly, reverting a change becomes challenging and time consuming.
 
 Microservices, on the other hand, if used well, can alleviate these pain points while introducing some new ones. Note that there's really nothing micro about microservices and the name is a misnomer. Microservices are independently managed and deployed services that communicate via APIs or message queues. Typically, one team owns the service and can dictate its code, releases, testing, availability, etc. It's also easier on new hires, too.
 
@@ -805,7 +819,7 @@ Now, microservices add a great deal of complexity overall.
 - Debugging and testing can be more challenging. Certain issues will only surface through service interacting together.
 - Microservices often have separate datastores and this creates eventual consistency. There's nothing stopping services from changing data and disagreeing about what is true.
 
-Again, if a monolith is well designed with proper boundaries, we can pull microservices out when needed. (Author expects that a well-designed monoliths, ones where you could "simply" decompose domains of concern into microservices would be an exceptional case. The author expects most would need a healthy amount of refactoring to occur in the monolith, but I'm willing to be proven wrong on this.)
+Again, if a monolith is well designed with proper boundaries, we can pull microservices out when needed. (Author expects that a well-designed monoliths, ones where you could "simply" decompose domains of concern into microservices would be an exceptional case. The author expects most monoliths would require a healthy amount of refactoring to setup this ideal scenario, but I'm willing to be proven wrong.)
 
 #### API gateway
 We want to minimize the number of endpoints that clients need to hit. We don't want consumers to have to worry about addressing our 50 different microservices. We can introduce an API gateway, an abstraction and reverse proxy, that hides the microservice architecture from clients. We can route requests via the reverse proxy, change internal endpoints without breaking clients, stitch together data from multiple services, and handle data inconsistencies. An API gateway is especially beneficial for public APIs backed by microservices. The gateway can also provide rate-limiting, caching, and authentication/authorization. Again, we need to be mindful of tradeoffs with a gateway: scaling, coupling, and microservice API changes. In terms of implementing an API gateway, you can
@@ -813,8 +827,12 @@ We want to minimize the number of endpoints that clients need to hit. We don't w
 - Start with a reverse proxy like [NGINX](https://www.nginx.com/) (pronounced engine-X)
 - Use a managed service like Google's [Apigee](https://cloud.google.com/apigee?hl=en)
 
+TODO: An API gateway diagram would be helpful.
+
 ##### GraphQL
-The gateway can also perform translation. For example, HTTP requests can be converted to a gRPC call or it could return less data for the mobile app. Graph APIs can help with this. [GraphQL](https://graphql.org/) (graph-ickle), for example, is a popular server-side library in this space that allows clients to simply request what they need. The idea is creating a backend that serves frontend needs (backend-for-frontends) where the frontend can query only for what it needs. Theoretically, if designed well, GraphQL should increase frontend flexibility for changes, decreases load through getting multiple resources in a single request, and reduce querying superfluous data. Of course, GraphQL has tradeoffs. GraphQL is complicated to get started and adds yet another dependency. We need to be cognizant of GraphQL security, query depths and limits, and so on else we run the risk of overloading our servers or exposing data to malicious actors. On the frontend, [Relay](https://relay.dev/) is a React client library and can make getting data from the GraphQL backend easier.
+The gateway can also perform translation. For example, HTTP requests can be converted to a gRPC call or it could return less data for the mobile app. Graph APIs can help with this. [GraphQL](https://graphql.org/) (graph-ickle), for example, is a popular server-side library in this space that allows clients to simply request what they need. The idea is creating a backend that serves frontend needs (backend-for-frontends) where the frontend can query only for what it needs. Theoretically, if designed well, GraphQL should increase frontend flexibility for changes, decreases load through getting multiple resources in a single request, and reduce querying superfluous data.
+
+Of course, GraphQL has tradeoffs. GraphQL is complicated to get started and adds yet another dependency. We need to be cognizant of query depths and limits else we run the risk of overloading our servers. Security is also quite challenging with GraphQL and we need to avoid exposing data to malicious actors. On the frontend, [Relay](https://relay.dev/) is a React client library and can make getting data from the GraphQL backend easier.
 
 ## Reliability
 [Top](#system-design)
@@ -833,9 +851,13 @@ There's several, common failures that can occur:
 8. **Cascading failures** Say a LB is hands requests to two downstream servers A and B. Everything is going smoothly but then server B suddenly dies. LB says, "No problem, I'll send all the requests to A now." Suddenly, server A can't keep up and dies. A cascading failure.
 
 ### Risk
-So, risks and failures are not the same thing. Risk is a failure that has a percent chance of occurring. You have two choices with risk: mitigation and ignoring. For example, we can simply ignore the risk of a issuing a single HTTP request or we can try to mitigate issues by retrying.
+So, risks and failures are not the same thing. A risk is a failure that has a chance of occurring. The failure hasn't happened *yet*. You have two choices with risk: mitigation and ignoring. For example, we can simply ignore the risk of a issuing a single HTTP request or we can try to mitigate issues by retrying. Some risks, might be so rare that we can ignore them.
 
 Note that we can try to rank certain risks, issues, gaps, etc. and determine mitigation or ignoring steps. For example, low risk and impact could maybe be ignored; alternatively, high risk and impact should would be worth mitigating. One could even factor the cost of mitigation into the chart.
+
+Ideally, when evaluating project risks, we only need to do a deep analysis on a couple at most.
+
+TODO: This is too short. Talk about how to weigh risk when starting a project or link to anther project design doc guide.
 
 ### Redundancy
 Replicas are one defense against failures, but again this has downsides in terms of complexity.
@@ -857,8 +879,12 @@ There will still be some user overlap, but it will be less likely. With this pat
 #### Cellular architecture
 We can combine all dependencies together into a cell: LBs, storage, servers, etc. and scale out cells on requests. Requests can be shared with cells via a gateway service. A benefit is that we can learn the maximum limits of each cell and scale out accordingly. We can totally understand the performance of a cell and how it handles load.
 
+TODO: Cellular architecture diagram
+
 #### Pool architecture
-An alternative to cellular architecture is pool architecture. Similar to cellular pattern, we can spin up and scale out services as needed but we can do this on a per customer basis. Small clients could share resources while jumbo customers could have their own separately scaled out resources. This way, a high traffic customer won't resource the smaller customers. See [this article](https://medium.com/@raphael.moutard/forget-your-microservices-the-unparalleled-benefits-of-pool-architecture-63b462989856) for more details.
+An alternative to cellular architecture is pool architecture. Similar to cellular pattern, we can spin up and scale out services as needed but we can do this on a per customer basis. Small clients could share a pool of resources while jumbo customers could have their personal pool of services separately scaled out. This way, a high traffic customer won't resource-starve the smaller customers. See [this article](https://medium.com/@raphael.moutard/forget-your-microservices-the-unparalleled-benefits-of-pool-architecture-63b462989856) for more details.
+
+TODO: Pool architecture diagram
 
 ## Monitoring
 Monitoring is mainly used to alert teams to failures and monitor system health via dashboards: pub/sub queue sizes, dead letter queue sizes, CPU utilization, RAM utilization, SLO/SLI values, replica counts, request counts, throughput, replica restarts, and so on.

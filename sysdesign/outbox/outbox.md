@@ -1,18 +1,19 @@
 # Outbox
+Imagine you need to store products into a database and a search engine. A basic implementation sends product adds, updates, and deletes to both places. But now, imagine, there's a network issue and database doesn't get updated. Now our database and search engine diverge; customers can search for a product but they can't buy it!
 
-Imagine you need to store products into a database and a search engine. A basic implementation sends product adds, updates, and deletes to both places. But now, imagine, there's a network issue and database doesn't get updated. Now our database and search engine diverge; customers can search for a product but not get details or buy it!
-
-An outbox pattern is used to durably replicate data to different data stores. For example, say that we want a SQL database to store product data in, but now we also want a search engine for quick look ups on our website. Now, assuming that we're ok with sequential consistency between the two, we can write database changes to a dedicated outbox table. This outbox table will list all the products that are created, updated, and deleted and a separate relay process will write these changes into our search engine.
+An outbox pattern is used to replicate data to different data stores. Assuming that we're ok with sequential consistency between the two, we can write DB table changes to a dedicated outbox table. Put another way, any time our products are added, updated, or deleted, the changes will be reflected into an outbox table. Then, a separate relay process will write these product changes into our search engine.
 
 ## Debezium
-Fortunately, we don't even need to write most of this oursevles. [Debezium](https://debezium.io/documentation/reference/stable/tutorial.html#introduction-debezium) can capture table changes and write them into a Kafka stream for us to update the search engine. Pretty sweet, right?
+Fortunately, we don't even need to write the relay process ourselves. [Debezium](https://debezium.io/documentation/reference/stable/tutorial.html#introduction-debezium) can capture table changes and write them into a Kafka stream. In turn, Kafka can load the product updates into a search engine. Pretty sweet, right?
+
+This project has several images that depend on one another. Debezium needs Kafka which needs Zookeeper. To show the outbox pattern in all its glory, it's nice to have a producer and consumer or PostgresSQL and ElasticSearch, respectively. In turn, a UI is helpful so we install Kafdrop and Kibana for Kafka and ElasticSearch, respectively. Lots of images to show this one off!
 
 ```zsh
 psql -h localhost -p 5432 -U postgres -d postgres
 ```
 
 ```
-\c mycompany
+\c outbox
 ```
 
 ```sql
@@ -62,3 +63,6 @@ docker exec -it <KAFKA-CONTAINER-ID> kafka-topics --bootstrap-server localhost:9
 
 ### ElasticSearch
 curl -X GET "localhost:9200/_cat/indices?v"
+
+## References
+- [Elasticsearch Sink Connector](https://d2p6pa21dvn84.cloudfront.net/api/plugins/confluentinc/kafka-connect-elasticsearch/versions/14.1.1/confluentinc-kafka-connect-elasticsearch-14.1.1.zip)

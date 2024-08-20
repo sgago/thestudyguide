@@ -16,6 +16,7 @@ var (
 	isLeader = false
 )
 
+// IsLeader returns true if this Znode is the leader; otherwise, false.
 func IsLeader() bool {
 	return isLeader
 }

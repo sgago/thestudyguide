@@ -55,9 +55,9 @@
   - [Strategy for DP](#strategy-for-dp)
   - [Strategy for looping](#strategy-for-looping)
   - [Using bitmasks for memos](#using-bitmasks-for-memos)
+- [DP or DFS + memoization + pruning?](#dp-or-dfs--memoization--pruning)
 - [Disjoint union set (DSU)](#disjoint-union-set-dsu)
 - [Intervals](#intervals)
-- [DP or DFS + memoization + pruning?](#dp-or-dfs--memoization--pruning)
 - [Trie](#trie)
 - [Keywords](#keywords)
 - [Concurrency](#concurrency)
@@ -71,6 +71,8 @@
   - [Atomics](#atomics)
     - [Compare-and-swap](#compare-and-swap)
 
+TODO: Explain what algorithms are, in lay terms so that it doesn't sound as painful.
+
 # Math
 There's some math to brush up on before diving in. Most of it's high-school level, fortunately!
 - **Logarithms:** To what power must we raise a certain base to get a number? We frequently deal with base Log base 2 here, which tells us how many times we need to multiply a number to reach a certain value. For example, `Log2(8) = 3` (`8 = 2 * 2 * 2 = three 2's`) reads, "How many times do we need to multiple 2 to get 8?". Be aware of context! In math classes, we usually assume Log base 10 when the base is omitted, but for programming we are *probably* assuming Log base 2!
@@ -78,6 +80,8 @@ There's some math to brush up on before diving in. Most of it's high-school leve
 - **Arithmetic sequences** An arithmetic sequence is a sequence of numbers where the difference between consecutive terms is constant. Like `1, 2, 3, 4, 5` or `2, 4, 5, 8, 10`. The sum of an arithmetic sequence can be quickly calculated with `(first_element + last_element) * number_of_elements / 2`.
 
 # Runtimes
+TODO: Rename this section to Analyzing algorithms and explain whey we do it.
+
 Runtimes clue us into how long an algorithm takes to runs as the number of inputs increase.
 These runtimes are expressed via Big O notation like O(1) or O(N^2).
 
@@ -228,11 +232,12 @@ N > 10^6 | O(logN) or O(1) | Binary search, math, cycle sort adjacent problems.
 Again, guessing the optimal solution from the size of input elements constraint is certainly error prone. This could *maybe suggest a solution for you maybe*.
 
 ## Pedantic sidenote
-Skip this section if your new to Big O notation.
+Skip this section if your new to Big O notation or want to save yourself some time.
 
-In business, we often use "Big O" loosely to talk about how an algorithm performs in the average or worst case. We typically want to quickly communicate the expected runtime without writing a ten page white paper on the topic. In academia, however, the business definition is closer to *Big Theta* which covers the expected-case.
+In business, we often use "Big O" loosely to talk about how an algorithm performs in the average or worst case. We rapidly communicate an expected runtime without writing a ten page whitepaper proof. In academia, however, the business definition is closer to *Big Theta* which covers the expected-case.
 
 You see, Big O actually describes the worst complexity of an algorithm-not the expected case-using an upper bound. Take a loop like
+
 ```go
 func pedanticComplexity() {
   for i := 0; i < N; i++ {
@@ -241,9 +246,13 @@ func pedanticComplexity() {
 }
 ```
 
-The complexity down not grow faster than N for large inputs; likewise, it's not wrong to say that the loop doesn't grow faster than N^2. N is a tighter, more restrictive bound. N^2 is less accurate but not *technically* wrong. We typically strive to provide the tightest bounds, but this is one of the reasons why Big O gets confusing in informal discussions.
+The complexity does not grow faster than N for large inputs. Hopefully this makes sense because the loop runs N times. However, the complexity doesn't grow faster than N^2 either, does it? This is one of the reasons why Big O can get confusing in informal discussions.
 
-This guide is focused on getting a job in industry, not academia. As such, it will use the looser Big O definition to keep the circus moving. This guide will take it one step further and drop O and paraentheses and simply say N^2 or NLogN.
+N is a tighter, more restrictive bound. N^2 is less accurate but not *technically* wrong. We typically strive to provide the tightest bounds, N in this case.
+
+If it helps, an interviewer is *usually* asking for Big Theta when they ask for the time complexity. If you feel unsure if they actually want Big O or Big Theta, you can ask and attempt to explain this long pedantic side note.
+
+Anyway, this guide is focused on getting a job in industry, not academia. As such, it will use the looser Big O definition to keep the circus moving. Also, this guide will take it a step further and drop the O and paraentheses and simply say N^2 or NLogN to mean O(N^2) and O(NLogN) so that the author can stave off carpel tunnel syndrome a bit longer.
 
 # Hash functions and maps
 A hash function converts arbitrary sized data into a fixed value, typically an Int32. For example, summing all integers in an array and mod'ing them by 100. We convert a bunch of data or text into a smaller, ergonomic number.
@@ -688,7 +697,10 @@ Backtracking tacks on some new concepts on top of trees and DFS. In short, the p
 2. We can drag state around via parameters/returns or with global/struct variables.
 3. If we get some crazy 2^N to N! memory usage with backtracking combinatorial problems, we may need to memoize intermediate solutions to cut down on memory usage. For a small to mid N, N! will kill our poor computer. Memoize typically means using a map or similar to store intermediate and final solutions to the combinatorial problems.
 
+TODO: Give a backtracking example
+
 ## Pruning
+TODO: Describe pruning. Give a code example.
 
 # Graphs
 Trees are rooted, connected, acyclic, undirected graphs. Trees contain N nodes and N-1 edges and there are only one path between 2 nodes.
@@ -755,19 +767,26 @@ When deciding between BFS or DFS to explore graphs, choose BFS for shortest dist
 DFS is better at using less memory for wide graphs (graphs with large breadth of factors). Put another way, BFS stores the breadth of the graph as it searches. DFS is also better at finding nodes that are far away such as a maze exit.
 
 # Dynamic programming
-There's simply nothing "dynamic" about dynamic programming (DP). The name is a misnomer. These problems can be quite challenging to wrap your mind around at first.
+There's simply nothing "dynamic" about dynamic programming (DP). The name is a misnomer. These problems can be quite challenging to wrap your mind around at first, if you're new.
 
-In DP, all you're trying to do is fill up a 1D or 2D array up with solutions to subproblems such that some slice element has the final solution to the entire problem in it. All the other elements will be solutions to subproblems. If the subproblem overlap, we'll need to pick the best solution.
+In DP, all you're trying to do is fill up a 1D or 2D array up with solutions to subproblems such that some slice element has the final solution to the entire problem in it. All the other elements will be solutions to subproblems. If the subproblem overlap, we'll need to pick the best solution and store that.
 
 A problem can be solved via dynamic programming (DP) if
 1. The problem can be divided into sub-problems
 2. The sub-problems from bullet 1 overlap
 
+TODO: These aren't tangible. Give examples.
+
 Ultimately, when solving DP problems, we're trying to develop the *recurrence relation* and it is critical. For example, the recurrence relation to tabulate any Fibonacci number into a `dp` memo is `dp[i] = dp[i - 1] + dp[i - 2]`.
 
-To be blunt, some recurrence relations just aren't obvious. Take finding the longest increasing subsequence (LIS). The recurrence relation from is `lis(i) = max(lis(i-1), lis(i-2) ... lis(0))` but only for `nums at i-1, i-2, ..., 0 < num at i`. One of the easier ways to figure this out is just to write out your `dp` memo for every loop iteration for some example they give you.
+TODO: Fill in the numbers so readers don't have to!
 
-For example, when I started to solve the longest increasing subsequence [here](./algorithms/problems/dynamic_programming/bottom_up/longest_increasing_subsequence/longest_increasing_subsequence_test.go), I wrote out the entire memo and gave myself some notes like:
+To be blunt, some recurrence relations just aren't obvious. Take finding the longest increasing subsequence (LIS). The recurrence relation from is `lis(i) = max(lis(i-1), lis(i-2) ... lis(0))` but only for `nums at i-1, i-2, ..., 0 < num at i`. You probably won't be able to guess it or just figure it out in your head. You're going to have to get your hands dirty and write stuff down.
+
+One of the easier ways to figure the reccurrence relation is to write out your `dp` memo for every loop iteration for some example they give you.
+
+For example, when I started to solve the longest increasing subsequence [here](./algorithms/problems/dynamic_programming/bottom_up/longest_increasing_subsequence/longest_increasing_subsequence_test.go), I wrote out the entire memo with notes:
+
 ```
 1 1 1 _ 1 1 1 _ 1 1 1  <- Our initial dp memo
 1 2 1 _ 1 1 1 _ 1 1 1  <- 0 to 1 is a LIS of 2.
@@ -779,15 +798,15 @@ For example, when I started to solve the longest increasing subsequence [here](.
 1 2 3 _ 3 4 5 _ 1 2 1
 1 2 3 _ 3 4 5 _ 1 2 4 <- Done. 5 is biggest LIS count with values 0 1 2 4 5 or 0 1 3 4 5
 
-The recurrence relation is like dp[i] = max(dp[i], dp[prev_i] + 1) but only dp[prev_i] where
+The recurrence relation is dp[i] = max(dp[i], dp[prev_i] + 1) but only dp[prev_i] where
 nums[i] > nums[prev_i], because otherwise it wouldn't be only increasing numbers.
 ```
 
-The notes are ugly, but they get the job done.
+Ugly, right? But they get the job done.
 
-Really, DP is typically similar in efficiency to DFS + memoization + pruning.  We typically call DP *bottom-up* and DFS + memoization + pruning *top-down*. While these algorithms can solve the same problems they typically have different applicaitons and strengths.
-- DFS is typically more generic and is helpful for exploring trees and graphs. You'll typically see if for combinatorial problems, mazes, or exploring a graph.
-- DP is helpful for overlapping subproblemms with optimal structure. You'll see this used for knapsack problems and longest sequence problems and so on.
+DP is typically similar in efficiency to DFS + memoization + pruning. Because of this, we call DP a *bottom-up* approach and DFS + memoization + pruning a *top-down* approach. While DP and DFS algorithms can solve the similar problems they typically have different applications and strengths.
+- DFS is typically more generic and helpful for exploring trees and graphs. You'll typically see if for combinatorial problems, mazes, or exploring a graph.
+- DP is helpful for overlapping sub-problems with optimal structure. You'll see this used for knapsack problems and longest sequence problems and so on.
 
 ## Strategy for DP
 Again, with DP you're trying to fill up a slice with answers to subproblems, often having to determine what to do if there's overlap when saving to same spot.
@@ -811,13 +830,17 @@ A more formal set of instructions for solving DP might be:
 4. **Initialize the memo with base cases:** We can typically need to initialize the memo with the base cases. For example, in the [perfect squares problem](./problems/dynamic/perfectsquares_test.go), we can initialize the memo with perfect squares like 1, 4, 9, 25, etc. immediately. Other times, we may need to loop through the 2D map or slice and declare base cases like for the coin game.
 5. **Two loops** Typically, you'll get an embedded looping solution (one loop in another).
 6. **Define the recurrence relation:** Develop the recurrence relation, a formula for transition from one state to the next. For example, clearly state how to transition from `dp[i]` to `dp[i+1]`. Start with transition from the base cases to the next case. Write the recurrence relation in something *you* can understand for coding like:
+
 ```
 The recurrence relation is:
 memo[i] = max(memo[i-1], memo[i-2]... memo[0])+1
   - applies ONLY for each memo[i-1] when nums[i]%nums[i-1]==0.
   - memo[0] is a base case and equals 0
 ```
-1. **(Optional) Optimize the memo:** Sometimes you can cut down on the amount of memory that the memo consumes. See Bitmasking.
+
+7. **(Optional) Optimize the memo:** Sometimes you can cut down on the amount of memory that the memo consumes. See Bitmasking.
+
+Again, I really can't stress enough how you 100% need to type out the the entire dp memo as it loops via comments. Solving one or two subproblems won't be enough. You need to type out several iterations and learn how to solve problems that overlap. If you don't type it out, the recurrence relation will be hard to see.
 
 ## Strategy for looping
 
@@ -988,29 +1011,17 @@ Some common bit operations you'll see are:
 
 I've authored a bitflag collection to help handle this memory optimization technique [here](./algorithms/col/bitflags/bitflags.go).
 
-# Disjoint union set (DSU)
-
-# Intervals
-```
-start1-----end1   // Interval 1
-
-  start2-----------end2    // Interval 2 that overlaps with 1
-
-                           start3-----end3    // Interval 3 that doesn't overlap with either 1 or 2
-```
-We can determine if intervals 1 and 2 overlap if `end1 >= start2 && end2 >= start1`. Notice that the formula returns false for intervals 1 and 3.
-
 # DP or DFS + memoization + pruning?
-Classically, DP problems can be solved in either top-down or bottom-up approach. The author, making stuff up again from practicing, defines three ways of solving these:
+DP and DFS can be used to solve similar problems. The author, making stuff up from practicing, defines three ways of solving these problems:
 1. **Recursion** - A DFS using recursion with memoization, pruning, and backtracking. The classic definition of top-down.
 2. **Looping** - A DFS using a stack or queue to track state instead of passing values around via function calls as we do with recursion. Uses memoization to skip inserting less efficient solutions into the stack or queue. Another top-down solution, similar to above but different.
 3. **1D or 2D slice/map** - We solve subproblems and store answers into a 1D or 2D slice/map (aka dynamic programming or DP). If there's overlap in the index, we take the "better" solution. The final location in the slice or map will hold the answer. Again, this is the classic method for bottom-up approaches.
 
 Honestly, if this was a production need, I would say it depends on the problem and how much we care about performance, readability, etc. But this is "interview" or "competitive" or "coding I do between jobs" programming so different rules apply lol. Therefore, you might consider simply picking top-down or bottom-up based on comfort level alone.
 
-Broadly speaking, from my personal practice, I prefer looping. Why?
-- After solving n-million DFS problems with recursion I always end up with a public and private function. The private function that actually does the DFS has an issue with tons of telescoping parameters and it's unclear which of these are inputs and outputs. Invariably, I want to change the order, add a complex type, or simply get confused about which parameters are for what. Eventually, you just decide to slap all the parameters into a state struct because it's easier to modify and use. No need to worry about the order struct fields appear in!
-- After solving n-million DP problems, the recurrence relation, the formula that gets you to `dp[next]` from `dp[previous]`, is hard to spot yet critical to figure out. Let me put this another way with bold text because it's important. **You 100% need to develop the recurrence relation formula for getting from a previous state to the next state. You need to do this in a reasonable amount of time. If you have the recurrence relation, you have almost everything you need. If you don't have the recurrence relation, you have nothing. If you don't have the recurrence relation, don't bother starting to code anything. This is all or nothing development - you either have the whole thing or you don't.** Again, you will 100% absolutely need to type out the the entire dp memo as it loops via comments, starting with the initial conditions. And solving one or two subproblems is just not enough to see the solution in its entirety. You need to type out like 5 to 10 iterations and learn how to solve problems that overlap. If you don't type it out, the recurrence relation will be hard to see.
+Broadly speaking, I prefer the looping strategy where reasonably possible. Why?
+- After solving n-million DFS problems with recursion I always end up with a public and private function. The private function that actually does the DFS has tons of telescoping parameters and it's unclear which of these are inputs and outputs. Invariably, I want to change the order, add a complex type, or simply get confused about which parameters are for what. Eventually, you just decide to slap all the parameters into a state struct because it's easier to modify and use. No need to worry about the order struct fields appear in!
+- After solving n-million DP problems, the recurrence relation, the formula that gets you to `dp[next]` from `dp[previous]`, is hard to spot yet critical to figure out. Let me put this another way with bold text because it's important. **You 100% need to know how to build up your memo. One way or another, fancy math formula or not, you need to develop the recurrence relation. You need to do figure this out in a reasonable amount of time. If you have the recurrence relation, you have almost everything you need. If you don't have the recurrence relation, you have nothing. If you don't have the recurrence relation, don't bother starting to code anything. This is all or nothing development - you either have the whole thing or you don't.** 
 
 Again, top-down looping feels like it lends itself to iterative problem solving. It feels consistent even though it might not always be faster than DP. With DP, you're going to get a unique recurrence relation and memo every time.
 1. Read the problem, determine WTF is going on.
@@ -1023,6 +1034,17 @@ Again, top-down looping feels like it lends itself to iterative problem solving.
 
 But hey, again, that's just my experience solving recursion, looping, and DP problems. Your mileage may vary.
 
+# Disjoint union set (DSU)
+
+# Intervals
+```
+start1-----end1   // Interval 1
+
+  start2-----------end2    // Interval 2 that overlaps with 1
+
+                           start3-----end3    // Interval 3 that doesn't overlap with either 1 or 2
+```
+We can determine if intervals 1 and 2 overlap if `end1 >= start2 && end2 >= start1`. Notice that the formula returns false for intervals 1 and 3.
 
 # Trie
 Tries, pronounced like "tries" to distinguish it from "trees", is a k-arity tree used as a lookup structure for prefixes for autocomplete and prefix count type problems. Tries do not typically store their key. Typically they are used with characters and strings, but they can also be used with bits or numbers.
@@ -1032,6 +1054,7 @@ Tries, pronounced like "tries" to distinguish it from "trees", is a k-arity tree
 A simple Trie implementation is [here](./algo/col/trie/trie.go).
 
 # Keywords
+TODO: Add keywords here that might tell us what type of problem we're solving.
 
 # Concurrency
 Here we give a deep treatment of concurrency in go: goroutines, locks, atomics, compare-and-swap, etc.

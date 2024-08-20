@@ -2,6 +2,7 @@ package zknode
 
 import "github.com/samuel/go-zookeeper/zk"
 
+// CreateIfNotExists creates a Znode if it does not exist.
 func CreateIfNotExists(conn *zk.Conn, path string, data []byte, flags int32, acl []zk.ACL) (bool, *zk.Stat, error) {
 	exists, stat, err := conn.Exists(path)
 	if err != nil {
@@ -27,6 +28,8 @@ func CreateIfNotExists(conn *zk.Conn, path string, data []byte, flags int32, acl
 	return true, stat, nil
 }
 
+// CreateIfNotExists creates a Znode if it does not exist and returns
+// a watch chan to monitor any changes.
 func CreateIfNotExistsW(conn *zk.Conn, path string, data []byte, flags int32, acl []zk.ACL) (bool, *zk.Stat, <-chan zk.Event, error) {
 	exists, stat, watch, err := conn.ExistsW(path)
 	if err != nil {

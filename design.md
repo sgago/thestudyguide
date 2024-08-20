@@ -71,3 +71,5 @@ DDD is a conceptual approach to development that emphasizes understanding and mo
 ### Domains
 *Domains* are a subject area for a project: products, users, customers, finance,
 and so on.
+
+## Evaluating risk
