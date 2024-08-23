@@ -2,10 +2,12 @@ services:
   # The official v2 Traefik docker image
   traefik:
     image: traefik:v2.11
-    command: --api.insecure=true --providers.docker # Enables the web UI and tells Traefik to listen to docker
+    command:
+      - --api.insecure=true
+      - --providers.docker # Enables the web UI and tells Traefik to listen to docker
     ports:
-      - "80:80" # Expose traefik's entry port
-      - "8080:8080" # Expose traefik's dashboard
+      - 80:80 # Expose traefik's entry port
+      - 8080:8080 # Expose traefik's dashboard
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # Lets traefik can listen to the Docker events

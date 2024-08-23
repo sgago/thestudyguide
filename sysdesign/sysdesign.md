@@ -36,6 +36,8 @@
       - [Other Special Message Queues](#other-special-message-queues)
   - [Coordination](#coordination)
   - [Clocks](#clocks)
+  - [Consensus](#consensus)
+    - [Raft](#raft)
     - [CockroachDB transaction timestamps](#cockroachdb-transaction-timestamps)
     - [CAP and PACELC theorems](#cap-and-pacelc-theorems)
     - [Consistency](#consistency)
@@ -418,6 +420,11 @@ To be blunt, getting multiple computers on an asynchronous network to agree on s
 Note that there are more tradeoffs than just fast-or-accurate. For example, eventual consistency can create weird looking errors and maintenance headaches.
 
 ## Clocks
+
+## Consensus
+
+### Raft
+To understand Raft consensus and leader election from a high level, checkout [this great visualization from The Secret Lives of Data](https://thesecretlivesofdata.com/raft/). It does a great job of showing leader election, heart beats, and what happens during network partitions.
 
 ### CockroachDB transaction timestamps
 CockroachDB uses a computer's physical clock for commit timestamps and also adds an upper bound with the maximum clock offset for the entire cluster. The interval is `[timestamp, timestamp + offset]`. As long as other transactions do not occur during this interval, everything proceeds normally. For example, in the boring case, if T1 has an interval of [0, 10] and T2 has interval of [20, 30], then T2 will read the values and overwrite as needed.

@@ -1,0 +1,87 @@
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.15
+    container_name: etcd
+    environment:
+      - ETCD_NAME=etcd0
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_INITIAL_CLUSTER_STATE=new
+      - ETCD_INITIAL_CLUSTER_TOKEN=docker-etcd-cluster
+      - ETCD_INITIAL_CLUSTER=etcd0=http://etcd:2380
+      - ETCD_DATA_DIR=/etcd-data
+    networks:
+      - raft-net
+
+  goginair-1:
+    container_name: goginair-1
+    hostname: goginair-1
+    ports:
+      - 8081:8080
+    build:
+      context: ./
+      dockerfile: dockerfile
+    expose:
+      - 8080
+      - 3001
+    environment:
+      - RAFT_ID={{.Node.ID}}
+      - RAFT_ADDRESS=goginair-1:3001
+      - RAFT_NODES=goginair-1:3001,goginair-2:3001,goginair-3:3001
+    restart: unless-stopped
+    networks:
+      - goginair-net
+      - raft-net
+    volumes:
+      - ./:/app # Important to bind/mount your codebase dir to /app dir for live reload
+
+  goginair-2:
+    container_name: goginair-2
+    hostname: goginair-2
+    ports:
+      - 8082:8080
+    build:
+      context: ./
+      dockerfile: dockerfile
+    expose:
+      - 8080
+      - 3001
+    environment:
+      - RAFT_ID={{.Node.ID}}
+      - RAFT_ADDRESS=goginair-2:3001
+      - RAFT_NODES=goginair-1:3001,goginair-2:3001,goginair-3:3001
+    restart: unless-stopped
+    networks:
+      - goginair-net
+      - raft-net
+    volumes:
+      - ./:/app
+
+  goginair-3:
+    container_name: goginair-3
+    hostname: goginair-3
+    ports:
+      - 8083:8080
+    build:
+      context: ./
+      dockerfile: dockerfile
+    expose:
+      - 8080
+      - 3001
+    environment:
+      - RAFT_ID={{.Node.ID}}
+      - RAFT_ADDRESS=goginair-3:3001
+      - RAFT_NODES=goginair-1:3001,goginair-2:3001,goginair-3:3001
+    restart: unless-stopped
+    networks:
+      - goginair-net
+      - raft-net
+    volumes:
+      - ./:/app
+
+networks:
+  goginair-net:
+  raft-net:
+    driver: bridge
