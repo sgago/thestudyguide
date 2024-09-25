@@ -4,14 +4,14 @@ package stack
 import (
 	"fmt"
 
-	"sgago/thestudyguide/col/conc"
+	"sgago/thestudyguide/col/lock"
 	"sgago/thestudyguide/errs"
 	sliceutil "sgago/thestudyguide/utils/slices"
 )
 
 // Stack is a a first-in last-out (FILO) collection.
 type Stack[T any] struct {
-	conc.RWLocker
+	lock.RW
 
 	elems []T
 	head  int
@@ -31,7 +31,7 @@ func New[T any](cap int, vals ...T) *Stack[T] {
 
 // Slice returns the internal slice backing this collection.
 func (s *Stack[T]) Slice() []T {
-	defer s.RWLocker.Write()()
+	defer s.RW.Write()()
 
 	return s.elems[:s.head+1]
 }
@@ -43,14 +43,14 @@ func (s *Stack[T]) String() string {
 
 // Len returns the number of elements in this Stack.
 func (s *Stack[T]) Len() int {
-	defer s.RWLocker.Read()()
+	defer s.RW.Read()()
 
 	return s.head + 1
 }
 
 // Cap returns current capacity of the underlying slice backing this stack.
 func (s *Stack[T]) Cap() int {
-	defer s.RWLocker.Read()()
+	defer s.RW.Read()()
 
 	return cap(s.elems)
 }
@@ -63,7 +63,7 @@ func (s *Stack[T]) Empty() bool {
 // Resize changes the length of the underlying slice by best-effort.
 // It will not delete stack elements.
 func (s *Stack[T]) Resize(cap int) {
-	defer s.RWLocker.Write()()
+	defer s.RW.Write()()
 
 	s.elems = s.elems[:max(len(s.elems), cap)]
 }
@@ -74,7 +74,7 @@ func (s *Stack[T]) Push(vals ...T) {
 		return
 	}
 
-	defer s.RWLocker.Write()()
+	defer s.RW.Write()()
 
 	newHead := s.head + len(vals)
 
@@ -94,7 +94,7 @@ func (s *Stack[T]) Push(vals ...T) {
 
 // Pop removes and returns the value at the top of the stack.
 func (s *Stack[T]) Pop() T {
-	defer s.RWLocker.Write()()
+	defer s.RW.Write()()
 
 	if s.head == -1 {
 		panic("the stack is empty")
@@ -107,7 +107,7 @@ func (s *Stack[T]) Pop() T {
 
 // TryPop attempts to pop a value from the top of the stack and returns an error if the stack is empty.
 func (s *Stack[T]) TryPop() (T, error) {
-	defer s.RWLocker.Write()()
+	defer s.RW.Write()()
 
 	if s.head >= 0 {
 		s.head--
@@ -119,7 +119,7 @@ func (s *Stack[T]) TryPop() (T, error) {
 
 // Peek returns the value at the top of the stack without removing it.
 func (s *Stack[T]) Peek() T {
-	defer s.RWLocker.Read()()
+	defer s.RW.Read()()
 
 	if s.head == -1 {
 		panic("the stack is empty")
@@ -130,7 +130,7 @@ func (s *Stack[T]) Peek() T {
 
 // TryPeek attempts to peek at the top of the stack and returns an error if the stack is empty.
 func (s *Stack[T]) TryPeek() (T, error) {
-	defer s.RWLocker.Read()()
+	defer s.RW.Read()()
 
 	if s.head >= 0 {
 		return s.elems[s.head], nil

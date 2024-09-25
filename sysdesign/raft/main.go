@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -17,52 +18,71 @@ import (
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 )
 
-const (
-	// URL Paths
-	homePath    = "/"
-	healthzPath = "/healthz"
-	leaderPath  = "/leader"
-	statePath   = "/state"
-	addNodePath = "/add_node"
-)
-
 var raftNode *raft.Raft
-var valueFsm *valueFSM
+
+var hostname string
+var addr string
+var bolt *raftboltdb.BoltStore
+var logs *raft.LogCache
+var snaps raft.SnapshotStore
+var trans *raft.NetworkTransport
+
+var fsm *valueFSM
 
 func main() {
-	hostname, err := os.Hostname()
+	var err error
+
+	hostname, err = os.Hostname()
 	if err != nil {
 		log.Fatalf("Failed to get hostname: %v", err)
 	}
 
-	raftAddr := config.RaftAddress()
+	addr = config.RaftAddress()
 
 	c := raft.DefaultConfig()
-	c.LocalID = raft.ServerID(raftAddr)
+	c.LocalID = raft.ServerID(addr)
 
-	store, err := raftboltdb.NewBoltStore(hostname + "-raft-store.db")
+	bolt, err = raftboltdb.NewBoltStore(hostname + "-raft-store.db")
 	if err != nil {
 		log.Fatalf("Failed to create BoltDB store: %v", err)
 	}
 
-	logStore, err := raft.NewLogCache(512, store)
+	// logCache is a replicated log that tracks cluster changes.
+	// It is used to ensure that the cluster configuration is consistent across all nodes.
+	// For example, when new data are added, the log store adds a corresponding log entry.
+	// The log store stores opaque binary blobs, so it is up to the application to interpret the data.
+	// This FSM uses Gob encoding to serialize and deserialize the data.
+	logs, err = raft.NewLogCache(512, bolt)
 	if err != nil {
 		log.Fatalf("Failed to create log store: %v", err)
 	}
 
-	snapshotStore, err := createSnapshotStoreWithRetry(".", 3, 500*time.Millisecond)
+	// snaps is used to store snapshots of the FSM.
+	// It minimizes disk usage and helps us avoid replaying the entire log over and over again.
+	// The logStore can grow forever, so the snapshotStore is used to store snapshots of the FSM
+	// and let's us compact (remove) old log entries to save space.
+	snaps, err = createSnapshotStoreWithRetry(".", 3, 500*time.Millisecond)
 	if err != nil {
 		log.Fatalf("Failed to create snapshot store: %v", err)
 	}
 
-	transport, err := raft.NewTCPTransport(raftAddr, nil, 2, 10*time.Second, os.Stderr)
+	// trans (transport) is used to setup communicate with other nodes in the cluster.
+	// Here we use good old TCP though gRPC is also well supported.
+	trans, err = raft.NewTCPTransport(addr, nil, 2, 10*time.Second, os.Stderr)
 	if err != nil {
 		log.Fatalf("Failed to create TCP transport: %v", err)
 	}
 
-	valueFsm = &valueFSM{}
+	// valueFsm is the finite state machine that stores the value, applies log entries, and creates snapshots.
+	// This Raft FSM stores a single JSON string value called "value" like {"value": "foo"}.
+	// The JSON will be Gob encoded and decoded.
+	fsm = &valueFSM{}
 
-	raftNode, err = raft.NewRaft(c, valueFsm, logStore, store, snapshotStore, transport)
+	// Create the raft node with the configuration, log store, and FSM.
+	// The node is the main entry point for the Raft protocol.
+	// It is responsible for coordinating the consensus protocol and applying log entries to the FSM.
+	// If you need to add more state machines, you can create a new FSM and call NewRaft again.
+	raftNode, err = raft.NewRaft(c, fsm, logs, bolt, snaps, trans)
 	if err != nil {
 		log.Fatalf("Failed to create Raft node: %v", err)
 	}
@@ -82,8 +102,13 @@ func main() {
 		Servers: servers,
 	}
 
-	f := raftNode.BootstrapCluster(cfg)
-	if err := f.Error(); err != nil {
+	// Next, we need to bootstrap the cluster. This is tricky because we only want one node to do this once.
+	// However, we definitely need one node to bootstrap the cluster or we won't have a functioning raft cluster!
+	// We could use env var tricks or a distributed lock to ensure only one node bootstraps the cluster.
+	// Instead, we will just have every node try to bootstrap the cluster and safely ignore the "cluster already exists"
+	// error when it fails. BootstrapCluster returns a future; we wait on that future via the Error method.
+	future := raftNode.BootstrapCluster(cfg)
+	if err := future.Error(); err != nil {
 		if !strings.Contains(err.Error(), "bootstrap only works on new clusters") {
 			fmt.Print(fmt.Errorf("raft.Raft.BootstrapCluster: %v", err))
 		}
@@ -91,86 +116,100 @@ func main() {
 
 	r := gin.Default()
 
-	r.GET(healthzPath, healthz)
-	r.POST(addNodePath, addNode)
-
-	r.POST("/set_value", func(c *gin.Context) {
-		var json struct {
-			Value string `json:"value" binding:"required"`
-		}
-
-		if err := c.ShouldBindJSON(&json); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		leader := raftNode.Leader()
-		if leader == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "No leader available"})
-			return
-		}
-
-		if leader != transport.LocalAddr() {
-			host, _, _ := net.SplitHostPort(string(leader))
-
-			// Forward the request to the leader node
-			url := fmt.Sprintf("http://%s:%s/set_value", host, "8080")
-
-			fmt.Println("Forwarding request to leader:", url)
-
-			cli := resty.New()
-
-			resp, err := cli.R().
-				EnableTrace().
-				SetBody(map[string]string{"Value": json.Value}).
-				Post(url)
-
-			fmt.Println(resp.Request.GenerateCurlCommand())
-
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-
-			c.JSON(resp.StatusCode(), gin.H{"message": resp.String()})
-
-			return
-		}
-
-		if err := setValue(json.Value); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"message": "value set"})
-	})
-
-	r.GET("/get_value", func(c *gin.Context) {
-		if valueFsm == nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "FSM not initialized"})
-			return
-		}
-		value := valueFsm.GetValue()
-		c.JSON(http.StatusOK, gin.H{"value": value})
-	})
-
-	r.GET(homePath, func(c *gin.Context) {
-		leader := raftNode.Leader()
-		state := raftNode.State().String()
-
-		c.JSON(http.StatusOK, gin.H{
-			"hostname": hostname,
-			"raftAddr": raftAddr,
-			"leader":   leader,
-			"state":    state,
-		})
-	})
+	r.GET("/", stateHandler)
+	r.GET("/healthz", healthz)
+	r.POST("/node", addNodeHandler)
+	r.POST("/value", setValueHandler)
+	r.GET("/value", getValueHandler)
 
 	r.Run()
 }
 
 func healthz(c *gin.Context) {
 	c.Writer.WriteHeader(http.StatusOK)
+}
+
+func stateHandler(c *gin.Context) {
+	leader := raftNode.Leader()
+	state := raftNode.State().String()
+
+	c.JSON(http.StatusOK, gin.H{
+		"hostname": hostname,
+		"raftAddr": addr,
+		"leader":   leader,
+		"state":    state,
+	})
+}
+
+func getValueHandler(c *gin.Context) {
+	if fsm == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "FSM not initialized"})
+		return
+	}
+	value := fsm.GetValue()
+	c.JSON(http.StatusOK, gin.H{"value": value})
+}
+
+func leader() (raft.ServerAddress, bool, error) {
+	leader := raftNode.Leader()
+	if leader == "" {
+		return "", false, errors.New("no leader is available")
+	}
+
+	return leader, leader == trans.LocalAddr(), nil
+}
+
+func setValueHandler(c *gin.Context) {
+	var json struct {
+		Value string `json:"value" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&json); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	leader, isLeader, err := leader()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No leader available"})
+		return
+	}
+
+	if !isLeader {
+		// Only the leader can accept writes and new nodes to the cluster.
+		// Therefore, we will forward the request to the leader node.
+		// Write attempts by a non-leader will cause an error.
+
+		host, _, _ := net.SplitHostPort(string(leader))
+		url := fmt.Sprintf("http://%s:%s/set_value", host, "8080")
+
+		fmt.Println("Forwarding request to leader:", url)
+
+		cli := resty.New()
+
+		resp, err := cli.R().
+			EnableTrace().
+			SetBody(map[string]string{"Value": json.Value}).
+			Post(url)
+
+		fmt.Println(resp.Request.GenerateCurlCommand())
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(resp.StatusCode(), gin.H{"message": resp.String()})
+
+		return
+	}
+
+	if err := setValue(json.Value); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "value set"})
 }
 
 func createSnapshotStoreWithRetry(dir string, retries int, delay time.Duration) (raft.SnapshotStore, error) {
@@ -208,7 +247,7 @@ func setValue(value string) error {
 	return nil
 }
 
-func addNode(c *gin.Context) {
+func addNodeHandler(c *gin.Context) {
 	var json struct {
 		NodeID  string `json:"node_id" binding:"required"`
 		Address string `json:"address" binding:"required"`

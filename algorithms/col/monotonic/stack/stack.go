@@ -4,11 +4,11 @@ import (
 	"cmp"
 	"fmt"
 
-	"sgago/thestudyguide/col/conc"
+	"sgago/thestudyguide/col/lock"
 )
 
 type Stack[T any] struct {
-	conc.RWLocker
+	lock.RW
 
 	v    []T
 	idx  int
@@ -35,7 +35,7 @@ func NewFunc[T any](cap int, less func(a, b T) bool) *Stack[T] {
 }
 
 func (s *Stack[T]) Push(val T) []T {
-	defer s.RWLocker.Write()()
+	defer s.RW.Write()()
 
 	if s.idx < 0 || !s.less(val, s.v[s.idx]) {
 		s.idx++
@@ -72,19 +72,19 @@ func (s *Stack[T]) Push(val T) []T {
 }
 
 func (s *Stack[T]) Peek() T {
-	defer s.RWLocker.Read()()
+	defer s.RW.Read()()
 	return s.v[s.idx]
 }
 
 func (s *Stack[T]) Pop() T {
-	defer s.RWLocker.Write()()
+	defer s.RW.Write()()
 	result := s.v[s.idx]
 	s.idx--
 	return result
 }
 
 func (s *Stack[T]) Slice() []T {
-	defer s.RWLocker.Write()()
+	defer s.RW.Write()()
 	return s.v[:s.idx+1]
 }
 
@@ -93,7 +93,7 @@ func (s *Stack[T]) String() string {
 }
 
 func (s *Stack[T]) Len() int {
-	defer s.RWLocker.Read()()
+	defer s.RW.Read()()
 	return s.idx + 1
 }
 
@@ -102,6 +102,6 @@ func (s *Stack[T]) Empty() bool {
 }
 
 func (s *Stack[T]) Resize(cap int) {
-	defer s.RWLocker.Write()()
+	defer s.RW.Write()()
 	s.v = s.v[:max(len(s.v), cap)]
 }

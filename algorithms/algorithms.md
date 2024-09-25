@@ -14,10 +14,11 @@
   - [O(logN)](#ologn)
   - [O(KlogN)](#oklogn)
   - [O(N)](#on)
-  - [O(KN)](#okn)
   - [O(N + M)](#on--m)
   - [O(V + E)](#ov--e)
   - [O(NlogN)](#onlogn)
+  - [O(NM)](#onm)
+  - [O(KN)](#okn)
   - [O(N^2)](#on2)
   - [O(2^N)](#o2n)
   - [O(N!)](#on-1)
@@ -80,14 +81,13 @@ There's some math to brush up on before diving in. Most of it's high-school leve
 - **Arithmetic sequences** An arithmetic sequence is a sequence of numbers where the difference between consecutive terms is constant. Like `1, 2, 3, 4, 5` or `2, 4, 5, 8, 10`. The sum of an arithmetic sequence can be quickly calculated with `(first_element + last_element) * number_of_elements / 2`.
 
 # Runtimes
-TODO: Rename this section to Analyzing algorithms and explain whey we do it.
-
-Runtimes clue us into how long an algorithm takes to runs as the number of inputs increase.
-These runtimes are expressed via Big O notation like O(1) or O(N^2).
+Runtimes refer to the amount of time an algorithm takes to execute as the size of the input increases. It helps us evaluate and compare different algorithms to determine which one is more efficient for a given problem. In other words, runtimes clue us into how long an algorithm takes to runs as the number of inputs increase. Runtimes are typically expressed in Big O notation like O(1) or O(N^2) where N is the number of inputs.
 
 For example,
-- O(1) tells us that our code runs for about the same amount of time independent of inputs.
+- O(1) tells us that our code runs in same amount of time independent of the number of inputs.
+- O(N) tells us that the time it takes our algorithm to run will grow linearly with the number of inputs.
 - O(2^N) tells us that our code's runtime will increase very rapidly with the number of inputs.
+
 Runtimes may also be called "time complexity" or "TC" for short.
 
 ## Summary
@@ -95,13 +95,14 @@ Runtime | Name | Example
 --- | --- | --- 
 `O(1)` | Constant | Math, assignments
 `O(alpha(N))` | Inverse Ackermann | Rare. Close to constant time; think O(4) at most. Appears is Disjointed Set Union.
-`O(logN)` | Log | Binary search, binary search tree search
-`O(KlogN)` | K linear | K binary searches
+`O(logN)` | Log | Binary search, binary search tree search. Grows slowly. log2(1_000_000) is only about 20.
+`O(KlogN)` | K Log | Running K binary searches
 `O(N)` | Linear | Traverse array, tree traversal
 `O(KN)` | K Linear | Performing a linear operation K times
-`O(N + M)` | Linear NM | Traverse array, tree traversal on two separate collections
+`O(N + M)` | Linear N + M | Traverse array, tree traversal on two separate collections
 `O(V + E)` | Graph | Traverse graph with V vertices and E edges, is actually O(|V|+|E|) but `|` make markdown mad
-`O(NlogN)` | Sort | Quick and merge sort, divide n' conquer
+`O(NlogN)` | NlogN/Sort | Quick and merge sort, divide n' conquer
+`O(NM)` | NM | An outer loop running N times with an inner loop running M times
 `O(N^2)` | Quadratic | Nested loops
 `O(2^N)` | Exponential | Combinatorial, backtracking, permutations
 `O(N!)` | Factorial | Combinatorial, backtracking, permutations
@@ -122,11 +123,13 @@ fmt.Println("more constant time code")
 ```
 
 ## O(logN)
-Log time. Grows slowly. log(1,000,000) is only about 20.
-- Binary searches, due to constantly splitting solution space in half
+Log time. Grows slowly. log(1,000,000) is only about 20. You typically see this when we're splitting the number of inputs in half over and over again.
+- Binary searches which split the solution space in half over and over again
 - Balanced binary search tree lookups, again because solution space is being split in half.
 - Processing number digits
-Unless specified, in programmer world, we mean log base 2 or log2(some_number).
+
+Again, we don't write out the log base and just assume based on context.
+In algebra class, teacher typically means log base 10 or log10(some_number); in programmer world, we mean log base 2 or log2(some_number).
 
 ```go
 for i := N; i > 0; i /= 2 {
@@ -152,12 +155,8 @@ for i := 0; i < N; i++ {
 }
 ```
 
-## O(KN)
-Typically, when you need to process N K times. Very exciting.
-
 ## O(N + M)
-Typically, when you have two inputs of size N and M. Say you loop once N times and then loop M times.
-Again, very exciting.
+Again, M indicates another input to the algorithm, and N + M occurs when you have two inputs of size N and M. Say you loop once N times and then loop M times after. Unlike K, M means another input to the function.
 
 ## O(V + E)
 For both DFS and BFS on a graph, the time complexity is O(|V| + |E|), where V is the number of vertices and E is the number of edges. The number of edges in a graph could be 1 to |V|^2, we really don't know. So we include both terms here.
@@ -167,10 +166,32 @@ When we need to do a logN time process N times.
 - Divide and conquer, where divide is logN and merge is N
 - Sorting can get down to this.
 
+## O(NM)
+M usually indicates another direct input to the algorithm, similar to N. This occurs when you have an outer loop running N times and an inner loop running M times.
+
+```go
+for i := 0; i < N; i++ {
+    for j := 0; j < M; j++ {
+        // Constant time code
+    }
+}
+```
+
+## O(KN)
+When K shows up, it is usually means something slightly differently than N and M. K represents an unknown constant number. For example, maybe we process N elements in K number of arrays. N and M usually describe two direct inputs of length N and M to our algorithm.
+
+```go
+const K = 10
+
+for i := 0; i < K; i++ {
+  for j := 0; j < N; j++ {
+    // Constant time code
+  }
+}
+```
+
 ## O(N^2)
-Quadratic time. Not terrible for N < 1000, but does grow quickly.
-Usually, interviewers want better than this. If you've come up
-with a N^2 runtime solution, there's probably something better.
+Quadratic time. Not terrible for N < 1000, but does grow quickly. Usually, interviewers want better than this. If you've come up with a N^2 runtime solution, there's probably something better.
 - Nested loops, where outer and inner loops run N times
 
 ```go
@@ -767,9 +788,9 @@ When deciding between BFS or DFS to explore graphs, choose BFS for shortest dist
 DFS is better at using less memory for wide graphs (graphs with large breadth of factors). Put another way, BFS stores the breadth of the graph as it searches. DFS is also better at finding nodes that are far away such as a maze exit.
 
 # Dynamic programming
-There's simply nothing "dynamic" about dynamic programming (DP). The name is a misnomer. These problems can be quite challenging to wrap your mind around at first, if you're new.
+In dynamic programming (DP), you're trying to fill up a 1D or 2D array up with solutions to subproblems such that some slice element has the final solution to the entire problem in it. All the other elements will be solutions to subproblems. If the subproblem overlap, we'll need to pick the best solution and store that.
 
-In DP, all you're trying to do is fill up a 1D or 2D array up with solutions to subproblems such that some slice element has the final solution to the entire problem in it. All the other elements will be solutions to subproblems. If the subproblem overlap, we'll need to pick the best solution and store that.
+In other words, there's nothing "dynamic" about dynamic programming (DP) at all. The name is a misnomer. These problems can be quite challenging to wrap your mind around at first, if you're new.
 
 A problem can be solved via dynamic programming (DP) if
 1. The problem can be divided into sub-problems
@@ -785,7 +806,7 @@ To be blunt, some recurrence relations just aren't obvious. Take finding the lon
 
 One of the easier ways to figure the reccurrence relation is to write out your `dp` memo for every loop iteration for some example they give you.
 
-For example, when I started to solve the longest increasing subsequence [here](./algorithms/problems/dynamic_programming/bottom_up/longest_increasing_subsequence/longest_increasing_subsequence_test.go), I wrote out the entire memo with notes:
+For example, when I started to solve the longest increasing subsequence [here](./algorithms/problems/dynamic_programming/bottom_up/longest_increasing_subsequence/longest_increasing_subsequence_test.go), I write the entire memo with notes:
 
 ```
 1 1 1 _ 1 1 1 _ 1 1 1  <- Our initial dp memo
@@ -843,6 +864,8 @@ memo[i] = max(memo[i-1], memo[i-2]... memo[0])+1
 Again, I really can't stress enough how you 100% need to type out the the entire dp memo as it loops via comments. Solving one or two subproblems won't be enough. You need to type out several iterations and learn how to solve problems that overlap. If you don't type it out, the recurrence relation will be hard to see.
 
 ## Strategy for looping
+
+TODO: This section is out of place.
 
 1. **Declare a state struct** that will carry values we need to check for possible solutions and expand the next states, if any.
 ```go
@@ -1047,16 +1070,18 @@ start1-----end1   // Interval 1
 We can determine if intervals 1 and 2 overlap if `end1 >= start2 && end2 >= start1`. Notice that the formula returns false for intervals 1 and 3.
 
 # Trie
-Tries, pronounced like "tries" to distinguish it from "trees", is a k-arity tree used as a lookup structure for prefixes for autocomplete and prefix count type problems. Tries do not typically store their key. Typically they are used with characters and strings, but they can also be used with bits or numbers.
+Tries, pronounced like "tries" to distinguish it from "trees", is a k-arity tree (each node in the tree can have k children) used as a lookup structure for prefixes for autocomplete and prefix count type problems. Tries do not typically store their key. Typically they are used with characters and strings, but they can also be used with bits or numbers.
 
-![](./diagrams/out/trie-example/trie-example.svg)
+Here's a diagram of a trie holding the words cat, cab, cap, and dog.
+![](../diagrams/out/trie-example/trie-example.svg)
 
-A simple Trie implementation is [here](./algo/col/trie/trie.go).
+A simple Trie implementation is [here](../algorithms/col/trie/trie.go).
 
 # Keywords
 TODO: Add keywords here that might tell us what type of problem we're solving.
 
 # Concurrency
+TODO: This section is out of place. Move it into the new concurrency section.
 Here we give a deep treatment of concurrency in go: goroutines, locks, atomics, compare-and-swap, etc.
 
 [These slides](https://go.dev/talks/2012/concurrency.slide#1) by Rob Pike have a good overview and introduction into gorountines, channels, and patterns.

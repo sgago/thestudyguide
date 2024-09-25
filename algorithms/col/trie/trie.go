@@ -1,4 +1,4 @@
-// Package trie provides a simple implementation of a Trie (prefix tree)
+// Package trie (pronounced try) provides a simple implementation of a Trie (prefix tree)
 // data structure in Go. Tries are useful for efficiently storing and
 // retrieving a collection of strings, especially when dealing with
 // operations involving prefixes.

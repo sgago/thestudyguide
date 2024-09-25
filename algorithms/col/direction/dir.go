@@ -1,4 +1,4 @@
-package dir
+package direction
 
 type Dir string
 

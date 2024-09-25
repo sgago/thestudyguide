@@ -101,6 +101,8 @@
     - [NoSQL databases](#nosql-databases)
     - [NewSQL databases](#newsql-databases)
 
+TODO: This needs a better introduction
+
 ## Communication
 [Top](#system-design)
 

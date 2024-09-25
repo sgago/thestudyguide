@@ -23,8 +23,6 @@ This guide assumes that you're decently comfortable with
 - Trees
 - DFS, backtracking, and memoization
 
-Let's get started.
-
 The name "dynamic programming" is 100% misnomer. There's nothing "dynamic" about it.
 I would name it "fill up an array with answers to subproblems"
 but that's a little long. Sarcasm aside, the rough idea really
@@ -57,7 +55,7 @@ func Test_SumASlice_TheUsualWay(t *testing.T) {
 =================================
 02. SUMMING A SLICE THE DP WAY
 =================================
-Boring as summing those numbers is, this is actually a basic
+Boring as summing up those numbers is, it is actually a basic
 DP problem and solution.
 
 The next test case demonstrates how to sum a slice "the DP way".
@@ -65,12 +63,12 @@ The next test case demonstrates how to sum a slice "the DP way".
 Instead of using a single integer, we're going to take a step in the
 "wrong" direction and use a slice to solve the problem.
 Each element will hold the sum of the previous numbers.
-I always name the slice "dp". The final element will hold our answer.
+I always name the slice "dp". For this problem, the final element will hold our answer.
 
-In our first couple of DP problems, we're going to use a 1D slice.
-Later, we'll need to bust out 2D slices, but, those are problems for future us.
-Also, the initial examples, the last element in slice will have the answer.
-This won't always be true, but, again, these are worries for future us.
+In our first couple of DP problems, we're going to use a 1D dp slice.
+Later, we'll need to bust out 2D slices; for now, we're going to keep it simple.
+Also, in our initial examples, the last element in slice will have the answer.
+Again, this won't always be true, but, for now, it's a good starting point.
 
 The problem wants us to find a sum, so our dp memo will also hold sums.
 */
@@ -109,6 +107,7 @@ func Test_SumASlice_TheDpWay(t *testing.T) {
 	assert.Equal(t, 15, ans)
 }
 
+// Same as above, but without distracting Printlns and comments.
 func Test_SumASlice_TheDpWay_NoComments(t *testing.T) {
 	nums := []int{5, 3, 1, 4, 2} // Sums to 15
 
@@ -144,9 +143,9 @@ For many problems, it's *usually* the same thing as whatever the problem is aski
 We need to type out our DP memo - even the 2D ones - and any notes you need.
 100% get use to doing this with the easy problems or you're
 going to have a bad time when the problems get harder.
-Dosing this will get you comfortable with the problem statement nuances.
+Doing this will get you comfortable with the problem statement nuances.
 
-Our dp[i] memo for summing a slice containing 1 2 3 4 5 will look like this:
+My memo notes for summing a slice containing 1 2 3 4 5 will look like this:
 1 2 3 4  5  <- I typically write out the input slice because my memory is short
 ----------
 0 0 0 0  0  <- Our initial dp memo of all zeros
@@ -156,21 +155,34 @@ Our dp[i] memo for summing a slice containing 1 2 3 4 5 will look like this:
 1 3 6 10 0  <- 6 + 4 = 10
 1 3 6 10 15 <- 10 + 5 = 15. Done, last element dp[4] has the answer of 15.
 
+Ugly, but it's a good habit to get into. You'll thank me later.
+
 3. DECLARE YOUR RECURRENCE RELATION
-The entire goal of writing out the memo states is to a) get used
-to the problem itself by hitting it head on and b) developing the recurrence
-relation. The recurrence relation is a fancy name for a formula that gets our
-dp memo from initial conditions to the next state, from dp[0] to dp[1] to dp[2] and so on.
+The entire goal of writing out the memo states is to a) get familiar
+with the problem itself quickly and b) developing the recurrence
+relation. The recurrence relation is a fancy name for a formula that gets your
+dp memo from initial conditions to the next state, to the next state, and so on.
+In other words, From dp[0] to dp[1] to dp[2] and so on.
 To be blunt, this formula is critical. Once you have
 and understand the recursion relation, you've got a big part of the problem solved.
 
 Let's backtrack to summing up values in a slice.
 For summing a slice, for each i-value, our recurrence relation is going to be
-dp[0] = dp[0] + nums[1] <- Or just nums[1] because dp[0] holds zero, initially
+dp[0] = nums[1] <- nums[1] for our initial conditions, because our sum is zero initially
 dp[1] = dp[1] + nums[2]
 dp[2] = dp[2] + nums[3]
 dp[3] = dp[3] + nums[4]
 dp[4] = dp[4] + nums[5]
+
+On occasion, you may find it helpful to declare the length of the dp memo
+as n+1, where n is the length of the input slice. This is because we're going to
+use the 0th index as a base condition. In memo notes, this would look similar to above:
+dp[0] = 0
+dp[1] = dp[0] + nums[1]
+dp[2] = dp[1] + nums[2]
+dp[3] = dp[2] + nums[3]
+dp[4] = dp[3] + nums[4]
+dp[5] = dp[4] + nums[5]
 
 So, stated more generally, our recurrence relation is dp[n] = dp[n-1] + nums[n].
 */
@@ -180,13 +192,16 @@ So, stated more generally, our recurrence relation is dp[n] = dp[n-1] + nums[n].
 04. FIND THE MAX NUMBER
 =================================
 In this example, we show how you can get the max value in a slice "the DP way".
-This introduces another important concept in DP: dealing with "overlap".
-Say we have 3, 4, 5, 2, 1. As we iterate through the slice,
-we need to make a "decision" of which number to keep at each step along the way.
+Just like the summing problem, we're going to use a dp memo to store the max value.
+However, finding the max number introduces an important concept in DP: dealing with "overlap".
+Many times when solving DP problems, we're going to need to look at multiple
+previous dp values and figure out which one is the best to keep.
 
-We carry the max value all the way to the last element.
-It's basically the same thing as summing a slice above, but with less noise from
-all the commenting. (Unlike in production code, repeated exposure is good for learning.)
+Say we have 3, 4, 5, 2, 1 and we want to find the maximum. As we iterate through the slice,
+we need to make a "decision" of which number to keep at each step along the way.
+Should we keep 3 or 4? 4 is bigger, so we keep 4. Should we keep 4 or 5? 5 is bigger, so we keep 5.
+
+We will carry the max value all the way to the last element.
 
 MEMO
 Again, here's how the DP memo looks after each loop
@@ -194,7 +209,7 @@ Again, here's how the DP memo looks after each loop
 3 4 0 0 0 <- Do we keep 3 or 4? 4 > 3, so keep 4
 4 4 5 0 0 <- Do we keep 4 or 5? 5 > 4, so keep 5
 4 4 5 5 0 <- Do we keep 5 or 2? 5 > 2, so keep 5
-4 4 5 5 5 <- Do we keep 5 or 1? 5 > 1, so keep 5. Done/
+4 4 5 5 5 <- Do we keep 5 or 1? 5 > 1, so keep 5. Done.
 
 RECURRENCE RELATION
 Our recurrence relation is going to be dp[i] = max(dp[i-1], nums[i]).
@@ -221,16 +236,19 @@ func Test_FindTheMaxNumber(t *testing.T) {
 05. MINIMUM PATH SUM
 =================================
 This problem will introduce us to solving DP problems with 2D slices.
+It will also combine the concepts of summing up values in a slice and finding the max value above.
 
-All we do here is start in the upper left of a 2D slice and minimize the sum it takes to
-get to the bottom right. You may only move right or down.
+Anyway, the minimum path sum problem is a classic DP problem.
+The problem is to find the minimum path sum from the top left to the bottom right of a 2D slice.
+So, we start in the upper left of a 2D slice and find the lowest cost to
+get to the bottom right. You may only move right or down. And each move has the cost in the cell.
 
 So, for
 1 2 3
 4 5 6
 7 8 9
 
-The minimum sum is 1 -> 2 -> 3 -> 6 -> 9 which sums to 21.
+The minimum sum is 1 -> 2 -> 3 -> 6 -> 9 which sums to 21. This is the lowest cost.
 */
 func Test_RobotPaths(t *testing.T) {
 	path := [][]int{
@@ -252,7 +270,7 @@ func Test_RobotPaths(t *testing.T) {
 	// - Declare a 2D slice with r rows and c cols instantly
 	// - Allocs sub-slices immediately so that we don't have to think about associated errors
 	// - Require the rows to be of equal length so that I don't have to think about those errors either
-	// - Initializes all the elements to some value other than the default value
+	// - Initializes all the elements to some value other than 0
 	// - Lets you get any row or column as a single 1D slice
 	// - Handles getting neighbor elements that are up, down, left, and right, either with row/col indexes or without
 	// - Handles getting a sub-2D slice from a larger one, either with row/col indexes or without
@@ -370,7 +388,7 @@ are 4 unique ways of summing 1, 2, and 5 to 5. They are:
 The coin game piles on some new concepts:
  1. We loop through dp[0] to dp[n] multiple times, instead of just
     considering only dp[0] and then only dp[1] the dp[2] and so on.
-    This helps gets us used to seeing our dp memo in a different way.
+    This helps gets us used to seeing and using our dp memo in a different way.
  3. Even the base conditions for the memo are tricky. We need to consider
     all the unique ways to make zero. There's 1 unique way to make zero and that's
     with no coins at all.
@@ -441,7 +459,7 @@ func Test_CoinChange_NoComments(t *testing.T) {
 }
 
 /*
-The longest increasing subsequence (LIS) problems piles on new DP concepts.
+The longest increasing subsequence (LIS) problem piles on new DP concepts.
   - The final answer is not stored in the last element.
     We don't really know which number will be the last number in the
     longest increasing subsequence chain.
@@ -562,14 +580,14 @@ Perfect squares DP problem is going to count the number of
 squared numbers we need to use to sun up some other number.
 
 In classic competitive programming style, we get some
-out-of-left-field feeling problems/concepts
-like a "perfect square" and need to understand it ourselves.
+out-of-left-field feeling math concepts that some PhD bothered to give a name to.
+Like the "perfect square" and need to understand it quickly.
 
 There's nothing perfect about the square at all, really. It's literally
 2 * 2 = 4, 3 * 3 = 9, 4 * 4 = 16, 5 * 5 = 25, etc. That's all they are,
-a number multiplied by itself aka n^2.
+a number multiplied by itself aka n^2 is a "perfect square".
 
-So, perfect square values are 1, 4, 9, 16, 25, 36, etc.
+So, perfect square values themselves are 1, 4, 9, 16, 25, 36, etc.
 And, we're going to count the minimum number of perfect squares used to get
 some other number.
 
@@ -705,14 +723,13 @@ func Test_TheDivisorGame_MemoryOptimizations(t *testing.T) {
 	// So, most of the time, if you see a slice of bools like
 	// flags := make([]bool, 10), it can be replaced with
 	// bit flagging. Each bool takes 1 byte, and typically malloc() won't give you
-	// memory with weird boundaries like 1, 2, 3, or 4 bits. That's how computers work.
+	// memory with weird boundaries like 1 or 3 bits.
 	// Your actual choices are always like 8, 16, 32, 64, and maybe 128. So, a bool is 1 byte.
-	// Therefore, we can save jam a bunch of bit values into a uint.
+	// Therefore, we can save jam a bunch of bit values into an unsigned integer.
+	// This is more space efficient but more annoying to work with.
 
-	// To make it even easier, I've implemented a
-	// bit flags struct already. It'll pick uint 8, 16, 32, or 64 for you
-	// and append more unsigned integers as needed. Dynamic resizing from
-	// smaller to larger sizes, like uint8 to uint16, is planned for future/never.
+	// To make it even easier, I've implemented a bit flags struct already.
+	// It'll pick uint 8, 16, 32, or 64 for you and append more unsigned integers as needed.
 	dp := flags.New(n + 1)
 	dp.Set(0, false)
 	dp.Set(1, false)

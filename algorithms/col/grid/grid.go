@@ -5,18 +5,23 @@ import (
 	"strings"
 )
 
+// Cell represents a cell in a grid.
 type Cell[T any] struct {
-	Row int
-	Col int
-	Val T
+	Row int // The row index of the cell.
+	Col int // The column index of the cell.
+	Val T   // The value stored in the cell.
 }
 
+// Grid represents a grid structure with a specified number of rows and columns.
+// Jagged grids are not supported; the number of rows must divide the length of the slice evenly.
 type Grid[T any] struct {
 	rows  int
 	cols  int
 	cells []Cell[T]
 }
 
+// New creates a new Grid with the specified number of rows and columns.
+// The grid is initialized with the zero value of T.
 func New[T any](rows int, cols int) *Grid[T] {
 	g := &Grid[T]{
 		rows:  rows,
@@ -32,6 +37,7 @@ func New[T any](rows int, cols int) *Grid[T] {
 	return g
 }
 
+// Initialize sets all the cells in the grid to the specified value.
 func (g *Grid[T]) Initialize(rows int, cols int, init T) *Grid[T] {
 	for i := 0; i < len(g.cells); i++ {
 		g.cells[i].Val = init
@@ -40,6 +46,8 @@ func (g *Grid[T]) Initialize(rows int, cols int, init T) *Grid[T] {
 	return g
 }
 
+// From1D creates a new Grid from a one-dimensional slice.
+// Jagged grids are not supported; the number of rows must divide the length of the slice evenly.
 func From1D[T any](rows int, x []T) *Grid[T] {
 	if len(x)%rows > 0 {
 		panic("the rows must be of equal length; len(x)%rows must equal 0")
@@ -64,6 +72,8 @@ func From1D[T any](rows int, x []T) *Grid[T] {
 	}
 }
 
+// From2D creates a new Grid from a two-dimensional slice.
+// Jagged grids are not supported; the number of rows must divide the length of the slice evenly.
 func From2D[T any](x [][]T) *Grid[T] {
 	g := Grid[T]{
 		rows: len(x),

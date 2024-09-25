@@ -4,13 +4,13 @@ package queue
 import (
 	"fmt"
 
-	"sgago/thestudyguide/col/conc"
+	"sgago/thestudyguide/col/lock"
 	"sgago/thestudyguide/errs"
 )
 
 // Queue is a a first-in first-out (FIFO) collection.
 type Queue[T any] struct {
-	conc.RWLocker
+	lock.RW
 
 	// The elements in this collection.
 	v []T
@@ -27,7 +27,7 @@ func New[T any](cap int, vals ...T) *Queue[T] {
 
 // Slice returns the internal slice backing this collection.
 func (q *Queue[T]) Slice() []T {
-	defer q.RWLocker.Read()()
+	defer q.RW.Read()()
 
 	return q.v
 }
@@ -39,7 +39,7 @@ func (q *Queue[T]) String() string {
 
 // Len returns the number of elements in this Queue.
 func (q *Queue[T]) Len() int {
-	defer q.RWLocker.Read()()
+	defer q.RW.Read()()
 
 	return len(q.v)
 }
@@ -50,14 +50,14 @@ func (q *Queue[T]) Empty() bool {
 
 // Cap returns the maximum number of elements this Queue can have before being re-sized.
 func (q *Queue[T]) Cap() int {
-	defer q.RWLocker.Read()()
+	defer q.RW.Read()()
 
 	return cap(q.v)
 }
 
 // TryDeq attempts to pop a value from the start of the Queue and returns an error if the Queue is empty.
 func (q *Queue[T]) TryDeq() (T, error) {
-	defer q.RWLocker.Write()()
+	defer q.RW.Write()()
 
 	if len(q.v) > 0 {
 		result := q.v[0]
@@ -70,7 +70,7 @@ func (q *Queue[T]) TryDeq() (T, error) {
 
 // TryPeek attempts to peek at the start of the Queue and returns an error if the Queue is empty.
 func (q *Queue[T]) TryPeek() (T, error) {
-	defer q.RWLocker.Read()()
+	defer q.RW.Read()()
 
 	if len(q.v) > 0 {
 		return q.v[0], nil
@@ -80,19 +80,19 @@ func (q *Queue[T]) TryPeek() (T, error) {
 }
 
 func (q *Queue[T]) EnqHead(vals ...T) {
-	defer q.RWLocker.Write()()
+	defer q.RW.Write()()
 
 	q.v = append(vals, q.v...)
 }
 
 func (q *Queue[T]) EnqTail(vals ...T) {
-	defer q.RWLocker.Write()()
+	defer q.RW.Write()()
 
 	q.v = append(q.v, vals...)
 }
 
 func (q *Queue[T]) DeqHead() T {
-	defer q.RWLocker.Write()()
+	defer q.RW.Write()()
 
 	result := q.v[0]
 	q.v = q.v[1:q.Len()]
@@ -100,7 +100,7 @@ func (q *Queue[T]) DeqHead() T {
 }
 
 func (q *Queue[T]) TryDeqHead() (T, error) {
-	defer q.RWLocker.Write()()
+	defer q.RW.Write()()
 
 	if len(q.v) == 0 {
 		return *new(T), errs.Empty
@@ -112,7 +112,7 @@ func (q *Queue[T]) TryDeqHead() (T, error) {
 }
 
 func (q *Queue[T]) DeqTail() T {
-	defer q.RWLocker.Write()()
+	defer q.RW.Write()()
 
 	result := q.v[len(q.v)-1]
 	q.v = q.v[0 : q.Len()-1]
@@ -120,7 +120,7 @@ func (q *Queue[T]) DeqTail() T {
 }
 
 func (q *Queue[T]) TryDeqTail() (T, error) {
-	defer q.RWLocker.Write()()
+	defer q.RW.Write()()
 
 	if len(q.v) == 0 {
 		return *new(T), errs.Empty
@@ -132,14 +132,14 @@ func (q *Queue[T]) TryDeqTail() (T, error) {
 }
 
 func (q *Queue[T]) PeekHead() T {
-	defer q.RWLocker.Read()()
+	defer q.RW.Read()()
 
 	result := q.v[0]
 	return result
 }
 
 func (q *Queue[T]) TryPeekHead() (T, error) {
-	defer q.RWLocker.Read()()
+	defer q.RW.Read()()
 
 	if len(q.v) == 0 {
 		return *new(T), errs.Empty
@@ -150,14 +150,14 @@ func (q *Queue[T]) TryPeekHead() (T, error) {
 }
 
 func (q *Queue[T]) PeekTail() T {
-	defer q.RWLocker.Read()()
+	defer q.RW.Read()()
 
 	result := q.v[len(q.v)-1]
 	return result
 }
 
 func (q *Queue[T]) TryPeekTail() (T, error) {
-	defer q.RWLocker.Read()()
+	defer q.RW.Read()()
 
 	if len(q.v) == 0 {
 		return *new(T), errs.Empty

@@ -35,6 +35,8 @@ func (this *Interval[T]) Overlap(other Interval[T]) bool {
 	return this.end >= other.start && other.end >= this.start
 }
 
+// Merge merges this interval with the other interval and returns the new merged interval.
+// It also returns true if the intervals overlapped and were merged; otherwise, false.
 func (this *Interval[T]) Merge(other Interval[T]) (Interval[T], bool) {
 	if !this.Overlap(other) {
 		bad := new(T)
@@ -50,18 +52,25 @@ func (this *Interval[T]) StartsBefore(other Interval[T]) bool {
 	return this.start < other.start
 }
 
+// StartsAfter returns true if this interval starts after the other interval;
+// otherwise, false.
 func (this *Interval[T]) StartsAfter(other Interval[T]) bool {
 	return this.start > other.start
 }
 
+// EndsBefore returns true if this interval ends before the other interval;
+// otherwise, false.
 func (this *Interval[T]) EndsBefore(other Interval[T]) bool {
 	return this.end < other.end
 }
 
+// EndsAfter returns true if this interval ends after the other interval;
+// otherwise, false.
 func (this *Interval[T]) EndsAfter(other Interval[T]) bool {
 	return this.end > other.end
 }
 
+// MergeAll merges all overlapping intervals in the given collection of intervals.
 func MergeAll[T cmp.Ordered](intervals ...Interval[T]) []Interval[T] {
 	if len(intervals) <= 1 {
 		return intervals
@@ -70,12 +79,11 @@ func MergeAll[T cmp.Ordered](intervals ...Interval[T]) []Interval[T] {
 	merged := []Interval[T]{}
 
 	// So, if we don't sort the intervals, then each interval must be
-	// visited N^2 times. If we sort by start time NlogN, this'll save us
-	// some work. Also, since the
+	// visited N^2 times. If we sort by start time NlogN, this'll save us work.
 	compare := func(a, b Interval[T]) int {
-		if a.start < b.start {
+		if a.StartsBefore(b) {
 			return -1
-		} else if a.start > b.start {
+		} else if a.StartsAfter(b) {
 			return 1
 		}
 

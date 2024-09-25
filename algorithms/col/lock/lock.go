@@ -1,9 +1,9 @@
-package conc
+package lock
 
 import "sync"
 
-// RWLocker is a reader/writer mutual exclusion locker for concurrent access.
-type RWLocker struct {
+// RW is a reader/writer mutual exclusion locker for concurrent access.
+type RW struct {
 	// Indicates if this locker is enabled for synchronizing access.
 	sync bool
 
@@ -11,22 +11,30 @@ type RWLocker struct {
 	mu sync.RWMutex
 }
 
-func (s *RWLocker) Read() func() {
-	if !s.sync {
+// Read returns a function that acquires a read lock.
+// Example:
+//
+//	defer lock.Read()()
+func (lock *RW) Read() func() {
+	if !lock.sync {
 		return func() {}
 	}
 
-	s.mu.RLock()
-	return s.mu.RUnlock
+	lock.mu.RLock()
+	return lock.mu.RUnlock
 }
 
-func (s *RWLocker) Write() func() {
-	if !s.sync {
+// Write returns a function that acquires a write lock.
+// Example:
+//
+//	defer lock.Write()()
+func (lock *RW) Write() func() {
+	if !lock.sync {
 		return func() {}
 	}
 
-	s.mu.Lock()
-	return s.mu.Unlock
+	lock.mu.Lock()
+	return lock.mu.Unlock
 }
 
 // Synchronize sets the synchronization flag for this locker.
@@ -34,14 +42,14 @@ func (s *RWLocker) Write() func() {
 // the locker will synchronize concurrent access using locks.
 // If enable is false, it disables synchronization, allowing
 // concurrent access without additional synchronization.
-func (s *RWLocker) Synchronize(enable bool) {
-	s.sync = enable
+func (lock *RW) Synchronize(enable bool) {
+	lock.sync = enable
 }
 
 // IsSynchronized returns true if the locker is configured for synchronization,
 // meaning that concurrent access is synchronized using locks.
 // Returns false if synchronization is disabled,
 // allowing concurrent access without additional synchronization.
-func (s *RWLocker) IsSynchronized() bool {
-	return s.sync
+func (lock *RW) IsSynchronized() bool {
+	return lock.sync
 }
