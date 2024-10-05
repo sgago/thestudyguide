@@ -1,0 +1,72 @@
+services:
+  traefik:
+    image: traefik:v2.11
+    command:
+      - --api.insecure=true
+      - --providers.Docker
+    ports:
+      - 80:80
+      - 8080:8080
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - goginair-net
+
+  goginair1:
+    image: steve8550/goginair:latest
+    build:
+      context: ./
+      dockerfile: dockerfile
+    ports:
+      - 8081:8080
+    expose:
+      - 8080
+      - 3333
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+    environment:
+      MY_NAME: goginair1
+      OTHER_NAMES: goginair1,goginair2
+      PORT: 8080
+      CAUSAL_PORT: 3333
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.my-service.rule=Host(`goginair.localhost`)"
+      - "traefik.http.services.api.loadbalancer.server.port=8080"
+    networks:
+      - causal-net
+      - goginair-net
+
+  goginair2:
+    image: steve8550/goginair:latest
+    build:
+      context: ./
+      dockerfile: dockerfile
+    ports:
+      - 8082:8080
+    expose:
+      - 8080
+      - 3333
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+    environment:
+      MY_NAME: goginair2
+      OTHER_NAMES: goginair1,goginair2
+      PORT: 8080
+      CAUSAL_PORT: 3333
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.my-service.rule=Host(`goginair.localhost`)"
+      - "traefik.http.services.api.loadbalancer.server.port=8080"
+    networks:
+      - causal-net
+      - goginair-net
+
+networks:
+  causal-net:
+    driver: bridge
+  goginair-net:
+    driver: bridge

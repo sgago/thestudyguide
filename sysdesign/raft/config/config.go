@@ -2,7 +2,7 @@ package config
 
 import "github.com/kelseyhightower/envconfig"
 
-type config struct {
+type Config struct {
 	RaftId        string   `envconfig:"RAFT_ID" default:"node1" required:"true"`
 	RaftAddress   string   `envconfig:"RAFT_ADDRESS" default:"localhost:3001" required:"true"`
 	RaftNodes     []string `envconfig:"RAFT_NODES" default:"localhost:3001" required:"true"`
@@ -10,7 +10,7 @@ type config struct {
 }
 
 var (
-	cfg config
+	cfg Config
 )
 
 func init() {
