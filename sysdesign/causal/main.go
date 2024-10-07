@@ -3,39 +3,51 @@ package main
 import (
 	"net/http"
 	"sgago/thestudyguide-causal/config"
+	"sgago/thestudyguide-causal/lamport"
 	"sgago/thestudyguide-causal/replicas"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
 )
 
 const (
-	home    = "/"
-	healthz = "/healthz"
+	homePath    = "/"
+	healthzPath = "/healthz"
+	incrPath    = "/increment"
 )
 
 func main() {
 	router := gin.Default()
 	resty := resty.New()
-	replicas := replicas.New(router, resty, config.OtherNames()...)
+	clock := lamport.New()
 
-	router.GET(healthz, func(c *gin.Context) {
+	replicas := replicas.New(
+		router,
+		resty,
+		clock,
+		config.OtherNames()...)
+
+	router.GET(healthzPath, func(c *gin.Context) {
 		c.Writer.WriteHeader(http.StatusOK)
 	})
 
-	router.GET(home, func(c *gin.Context) {
+	router.GET(homePath, func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"value": "hello",
 		})
 	})
 
-	go func() {
-		for i := 0; i < 100; i++ {
-			<-replicas.Healthz()
-			time.Sleep(10 * time.Second)
-		}
-	}()
+	router.POST(incrPath, func(c *gin.Context) {
+		<-replicas.BroadcastIncrement()
+		c.Writer.WriteHeader(http.StatusOK)
+	})
+
+	// go func() {
+	// 	for i := 0; i < 100; i++ {
+	// 		<-replicas.Healthz()
+	// 		time.Sleep(10 * time.Second)
+	// 	}
+	// }()
 
 	router.Run()
 }

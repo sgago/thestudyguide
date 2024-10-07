@@ -57,6 +57,7 @@ func (b *Broadcast) SendC() chan *BroadcastResponse {
 			defer wg.Done()
 
 			req := deepClone(b.proto)
+			req.Method = b.verb
 			req.URL = u
 
 			for resp := range sendC(req) {

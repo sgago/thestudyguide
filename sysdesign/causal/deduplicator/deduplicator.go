@@ -26,23 +26,21 @@ func New[T comparable](ttl time.Duration) *Deduplicator[T] {
 func (d *Deduplicator[T]) Seen(key T) bool {
 	defer d.Read()()
 
-	if _, ok := d.seen[key]; ok {
-		return true
-	}
-
-	return false
+	_, ok := d.seen[key]
+	return ok
 }
 
 // Mark marks the given key as seen and returns true if it was not seen before.
 func (d *Deduplicator[T]) Mark(key T) bool {
 	defer d.Write()()
 
-	if !d.Seen(key) {
+	var ok bool
+
+	if _, ok = d.seen[key]; !ok {
 		d.seen[key] = time.Now()
-		return true
 	}
 
-	return false
+	return !ok
 }
 
 // Delete removes the given key from the deduplicator.
