@@ -3,6 +3,7 @@
 package broadcast
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
@@ -16,8 +17,10 @@ type Broadcast struct {
 	verb  string
 	urls  []string
 
-	onSuccessFunc func(resp *resty.Response)
-	onErrorFunc   func(err error)
+	onSuccessFunc     func(resp *resty.Response)
+	onNotFoundFunc    func(resp *resty.Response)
+	onServerErrorFunc func(resp *resty.Response)
+	onErrorFunc       func(err error)
 }
 
 // BroadcastResponse represents the response of a broadcast request.
@@ -46,7 +49,7 @@ func Post(req *resty.Request, urls ...string) *Broadcast {
 
 // SendC sends the broadcast request concurrently and
 // returns a channel to receive the responses.
-func (b *Broadcast) SendC() chan *BroadcastResponse {
+func (b *Broadcast) SendC() <-chan *BroadcastResponse {
 	out := make(chan *BroadcastResponse, len(b.urls))
 	var wg sync.WaitGroup
 
@@ -54,7 +57,13 @@ func (b *Broadcast) SendC() chan *BroadcastResponse {
 		wg.Add(1)
 
 		go func(u string) {
-			defer wg.Done()
+			defer func() {
+				wg.Done()
+				if r := recover(); r != nil {
+					// TODO: Do something with the error.
+					fmt.Println("Recovered from panic:", r)
+				}
+			}()
 
 			req := deepClone(b.proto)
 			req.Method = b.verb
@@ -62,7 +71,13 @@ func (b *Broadcast) SendC() chan *BroadcastResponse {
 
 			for resp := range sendC(req) {
 				if resp.Err == nil && b.onSuccessFunc != nil {
-					b.onSuccessFunc(resp.Response)
+					if resp.StatusCode() == http.StatusOK && b.onSuccessFunc != nil {
+						b.onSuccessFunc(resp.Response)
+					} else if resp.StatusCode() == http.StatusNotFound && b.onNotFoundFunc != nil {
+						b.onNotFoundFunc(resp.Response)
+					} else if resp.StatusCode() >= http.StatusInternalServerError && b.onServerErrorFunc != nil {
+						b.onServerErrorFunc(resp.Response)
+					}
 				} else if resp.Err != nil && b.onErrorFunc != nil {
 					b.onErrorFunc(resp.Err)
 				}
@@ -80,8 +95,8 @@ func (b *Broadcast) SendC() chan *BroadcastResponse {
 	return out
 }
 
-func (b *Broadcast) Send() chan bool {
-	done := make(chan bool)
+func (b *Broadcast) Send() <-chan bool {
+	done := make(chan bool, 1)
 
 	go func() {
 		defer close(done)
@@ -117,12 +132,18 @@ func (b *Broadcast) OnError(do func(err error)) *Broadcast {
 	return b
 }
 
+func (b *Broadcast) OnNotFound(do func(resp *resty.Response)) *Broadcast {
+	b.onNotFoundFunc = do
+	return b
+}
+
 // sendC sends the request and returns a channel to receive the response.
-func sendC(req *resty.Request) chan *BroadcastResponse {
+func sendC(req *resty.Request) <-chan *BroadcastResponse {
 	out := make(chan *BroadcastResponse, 1)
 
 	go func() {
 		defer close(out)
+
 		resp, err := req.Send()
 		out <- &BroadcastResponse{Response: resp, Err: err}
 	}()

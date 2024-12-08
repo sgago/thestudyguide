@@ -57,6 +57,7 @@
   - [Strategy for looping](#strategy-for-looping)
   - [Using bitmasks for memos](#using-bitmasks-for-memos)
 - [DP or DFS + memoization + pruning?](#dp-or-dfs--memoization--pruning)
+- [Greedy algorithms](#greedy-algorithms)
 - [Disjoint union set (DSU)](#disjoint-union-set-dsu)
 - [Intervals](#intervals)
 - [Trie](#trie)
@@ -1056,6 +1057,16 @@ Again, top-down looping feels like it lends itself to iterative problem solving.
 7. Once that's all solved, add memoization as an optimization. *Typically*, you can memoize the solution but this not always true! For example, see the [minimum XOR sum of two arrays solution](./algorithms/problems/leetcode/1879_minimum_xor_sum_of_two_arrays/) where there's no value we can store. *Usually*, you can memoize. If you can use a memo, clarify what needs to memoized. In *most* cases, the memo is the same as, or aligns closely with, the problems output.
 
 But hey, again, that's just my experience solving recursion, looping, and DP problems. Your mileage may vary.
+
+# Greedy algorithms
+Greedy algorithms are those that take an immediate, best choice to a subproblem
+with the goal of finding the overall, globally optimal solution.
+Greedy algorithms give zero regard to the future; we're going to pick the first
+best option we see. Doing the local best yields the global best.
+
+Similar to dynamic programming, you'll see keywords for optimization problems: minimum, fewest, maximum, and so on. Unlike, dynamic programming, we don't have to jump around in an array a bunch. We just pick what looks best right now and move on.
+
+TODO: Finish this section and give some examples.
 
 # Disjoint union set (DSU)
 

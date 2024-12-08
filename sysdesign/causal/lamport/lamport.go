@@ -2,6 +2,7 @@
 package lamport
 
 import (
+	"strconv"
 	"sync/atomic"
 )
 
@@ -37,4 +38,8 @@ func (c *Clock) Get() uint64 {
 // Reset resets the clock to 0.
 func (c *Clock) Reset() {
 	c.ticks.Store(0)
+}
+
+func (c *Clock) String() string {
+	return strconv.FormatUint(c.ticks.Load(), 10)
 }
