@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"net/http"
-	"sgago/thestudyguide-causal/config"
+	"sgago/thestudyguide-causal/consul"
+	"sgago/thestudyguide-causal/envcfg"
 	"sgago/thestudyguide-causal/lamport"
 	"sgago/thestudyguide-causal/replicas"
-	"sgago/thestudyguide-causal/replicas/increment"
+	"sgago/thestudyguide-causal/replicas/counter"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,22 +16,26 @@ import (
 )
 
 const (
-	homePath    = "/"
-	healthzPath = "/healthz"
-	incrPath    = "/increment"
+	homePath   = "/"
+	healthPath = "/health"
+	incrPath   = "/increment"
 )
 
 func main() {
+	consul, err := consul.New()
+	if err != nil {
+		log.Fatalf("Failed to create Consul client: %v", err)
+	}
+
+	if err := consul.Register(); err != nil {
+		log.Fatalf("Failed to register service with Consul: %v", err)
+	}
+
+	consul.StartTTL()
+
 	router := gin.Default()
-	resty := resty.New().SetTimeout(5 * time.Second)
 
-	replicas := replicas.New(
-		router,
-		resty,
-		config.MyId(),
-		config.Hosts()...)
-
-	router.GET(healthzPath, func(c *gin.Context) {
+	router.GET(healthPath, func(c *gin.Context) {
 		c.Writer.WriteHeader(http.StatusOK)
 	})
 
@@ -38,19 +45,30 @@ func main() {
 		})
 	})
 
-	incr := increment.New(replicas, lamport.New())
+	resty := resty.New().SetTimeout(15 * time.Second)
+
+	// TODO: This does not get a current list of replicas from Consul.
+	replicas := replicas.New(
+		router,
+		resty,
+		consul.Services()...)
+
+	counter := counter.New(replicas, lamport.New(), envcfg.HostName())
 
 	router.POST(incrPath, func(c *gin.Context) {
-		<-incr.Do()
+		fmt.Println(("received increment request"))
+		counter.Increment()
 		c.Writer.WriteHeader(http.StatusOK)
+
+		//TODO: Put a body here so we can see the count
 	})
 
 	go func() {
-		for i := 0; i < 100; i++ {
-			<-incr.Do()
-			time.Sleep(10 * time.Second)
+		fmt.Println("Starting server")
+		if err := router.Run(); err != nil {
+			log.Fatalf(("Failed to start server: %v"), err)
 		}
 	}()
 
-	router.Run()
+	select {}
 }

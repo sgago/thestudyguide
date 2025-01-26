@@ -1,4 +1,4 @@
-package healthz
+package health
 
 import (
 	"fmt"
@@ -11,37 +11,37 @@ import (
 )
 
 const (
-	healthzPath = "/healthz"
+	healthPath = "/health"
 
-	HealthzPath = replicas.GroupPath + healthzPath
+	HealthPath = replicas.GroupPath + healthPath
 )
 
-type Healthz struct {
+type Health struct {
 	*replicas.Replicas
 }
 
-func New(r *replicas.Replicas) *Healthz {
-	h := &Healthz{
+func New(r *replicas.Replicas) *Health {
+	h := &Health{
 		Replicas: r,
 	}
 
-	r.Router.GET(HealthzPath, h.handle)
+	r.Router.GET(HealthPath, h.handle)
 
 	return h
 }
 
-func (r *Healthz) Do() <-chan bool {
-	return r.broadcast()
+func (h *Health) Do() <-chan bool {
+	return h.broadcast()
 }
 
-func (r *Healthz) broadcast() <-chan bool {
+func (h *Health) broadcast() <-chan bool {
 	done := make(chan bool)
 
 	go func() {
 		defer close(done)
 
-		req := r.Request()
-		urls := r.Urls(HealthzPath)
+		req := h.Request()
+		urls := h.Urls(HealthPath)
 
 		result := <-broadcast.
 			Post(req, urls...).
@@ -51,14 +51,14 @@ func (r *Healthz) broadcast() <-chan bool {
 			OnError(func(err error) {
 				fmt.Println(err)
 			}).
-			Send()
+			SendC()
 
-		done <- result
+		done <- result != nil
 	}()
 
 	return done
 }
 
-func (r *Healthz) handle(c *gin.Context) {
+func (h *Health) handle(c *gin.Context) {
 	c.Writer.WriteHeader(http.StatusOK)
 }

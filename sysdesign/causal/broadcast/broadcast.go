@@ -1,5 +1,3 @@
-// Package broadcast provides functionality for sending broadcast
-// requests to multiple URLs concurrently.
 package broadcast
 
 import (
@@ -11,19 +9,15 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-// Broadcast represents a broadcast request.
 type Broadcast struct {
 	proto *resty.Request
 	verb  string
 	urls  []string
 
-	onSuccessFunc     func(resp *resty.Response)
-	onNotFoundFunc    func(resp *resty.Response)
-	onServerErrorFunc func(resp *resty.Response)
-	onErrorFunc       func(err error)
+	onSuccessFunc func(resp *resty.Response)
+	onErrorFunc   func(err error)
 }
 
-// BroadcastResponse represents the response of a broadcast request.
 type BroadcastResponse struct {
 	*resty.Response
 	Err error
@@ -47,8 +41,8 @@ func Post(req *resty.Request, urls ...string) *Broadcast {
 	}
 }
 
-// SendC sends the broadcast request concurrently and
-// returns a channel to receive the responses.
+// SendC sends the broadcast request concurrently to all replicas
+// and returns a channel to receive the responses.
 func (b *Broadcast) SendC() <-chan *BroadcastResponse {
 	out := make(chan *BroadcastResponse, len(b.urls))
 	var wg sync.WaitGroup
@@ -57,70 +51,40 @@ func (b *Broadcast) SendC() <-chan *BroadcastResponse {
 		wg.Add(1)
 
 		go func(u string) {
-			defer func() {
-				wg.Done()
-				if r := recover(); r != nil {
-					// TODO: Do something with the error.
-					fmt.Println("Recovered from panic:", r)
-				}
-			}()
+			defer wg.Done()
 
+			// Clone the original request and set the target URL
 			req := deepClone(b.proto)
 			req.Method = b.verb
 			req.URL = u
 
-			for resp := range sendC(req) {
-				if resp.Err == nil && b.onSuccessFunc != nil {
-					if resp.StatusCode() == http.StatusOK && b.onSuccessFunc != nil {
-						b.onSuccessFunc(resp.Response)
-					} else if resp.StatusCode() == http.StatusNotFound && b.onNotFoundFunc != nil {
-						b.onNotFoundFunc(resp.Response)
-					} else if resp.StatusCode() >= http.StatusInternalServerError && b.onServerErrorFunc != nil {
-						b.onServerErrorFunc(resp.Response)
-					}
-				} else if resp.Err != nil && b.onErrorFunc != nil {
-					b.onErrorFunc(resp.Err)
-				}
+			// Send the request
+			resp, err := req.Send()
 
-				out <- resp
+			// Handle success or failure
+			if err != nil {
+				fmt.Printf("Error sending to %s: %v\n", u, err)
+			} else {
+				if b.onSuccessFunc != nil && resp.StatusCode() == http.StatusOK {
+					b.onSuccessFunc(resp)
+				}
 			}
+
+			// Send the response (or error) back on the channel
+			out <- &BroadcastResponse{Response: resp, Err: err}
 		}(url)
 	}
 
+	// Close the channel once all goroutines have completed
 	go func() {
-		defer close(out)
 		wg.Wait()
+		close(out)
 	}()
 
 	return out
 }
 
-func (b *Broadcast) Send() <-chan bool {
-	done := make(chan bool, 1)
-
-	go func() {
-		defer close(done)
-
-		success := true
-		resps := b.SendC()
-
-		for resp := range resps {
-			if resp.Err != nil {
-				success = false
-			}
-		}
-
-		done <- success
-	}()
-
-	return done
-}
-
-func (b *Broadcast) SendAndWait() bool {
-	return <-b.Send()
-}
-
-// OnSuccess sets the function to be executed on successful response.
+// OnSuccess sets the function to be executed on a successful response.
 func (b *Broadcast) OnSuccess(do func(resp *resty.Response)) *Broadcast {
 	b.onSuccessFunc = do
 	return b
@@ -132,35 +96,12 @@ func (b *Broadcast) OnError(do func(err error)) *Broadcast {
 	return b
 }
 
-func (b *Broadcast) OnNotFound(do func(resp *resty.Response)) *Broadcast {
-	b.onNotFoundFunc = do
-	return b
-}
-
-// sendC sends the request and returns a channel to receive the response.
-func sendC(req *resty.Request) <-chan *BroadcastResponse {
-	out := make(chan *BroadcastResponse, 1)
-
-	go func() {
-		defer close(out)
-
-		resp, err := req.Send()
-		out <- &BroadcastResponse{Response: resp, Err: err}
-	}()
-
-	return out
-}
-
-// shallowClone creates a clone of the request.
-func shallowClone(req *resty.Request) *resty.Request {
-	clone := *req
-	return &clone
-}
-
+// deepClone manually clones the request, ensuring all headers and settings are copied.
 func deepClone(req *resty.Request) *resty.Request {
-	clone := shallowClone(req)
+	// Create a new request based on the original
+	clone := resty.New().R()
 
-	// Clone basic fields
+	// Copy all necessary fields from the original request
 	clone.Method = req.Method
 	clone.URL = req.URL
 	clone.QueryParam = cloneValues(req.QueryParam)
@@ -168,8 +109,15 @@ func deepClone(req *resty.Request) *resty.Request {
 	clone.PathParams = cloneMap(req.PathParams)
 	clone.Cookies = cloneCookies(req.Cookies)
 
+	// If the body is set, copy it to the cloned request
 	if req.Body != nil {
 		clone.SetBody(req.Body)
+	}
+
+	// Copy headers from the original request
+	clone.Header = make(map[string][]string)
+	for k, v := range req.Header {
+		clone.Header[k] = append([]string{}, v...)
 	}
 
 	return clone

@@ -37,7 +37,8 @@
   - [Coordination](#coordination)
   - [Clocks](#clocks)
   - [Consensus](#consensus)
-    - [Raft](#raft)
+    - [Raft Consensus](#raft-consensus)
+    - [Paxos Consensus](#paxos-consensus)
     - [CockroachDB transaction timestamps](#cockroachdb-transaction-timestamps)
     - [CAP and PACELC theorems](#cap-and-pacelc-theorems)
     - [Consistency](#consistency)
@@ -47,7 +48,9 @@
         - [The CALM theorem](#the-calm-theorem)
         - [Causal consistency continued](#causal-consistency-continued)
       - [Causal+ consistency](#causal-consistency-1)
+      - [Common CRDT Types](#common-crdt-types)
       - [Eventual consistency](#eventual-consistency)
+      - [Anti-Entropy](#anti-entropy)
     - [Transactions](#transactions)
     - [ACID](#acid)
       - [I is for Isolation](#i-is-for-isolation)
@@ -126,7 +129,7 @@ There are other layers: physical and data link. We'll briefly note them here:
 - Physical concerns itself with voltages, pins, cabling, wireless frequencies, etc.
 - Data link concerns itself with providing frames for the raw bits and provides some error correction/detection.
 
-To be blunt, these layer models are totally bogus; however, they are helpful for conceptualizing the layers of abstraction in Internet communications.
+To be blunt, layer models are bogus; however, they are helpful for conceptualizing the layers of abstraction in Internet communications.
 
 It should also be noted that TCP is on its way out and being replaced by [QUIC](https://en.wikipedia.org/wiki/QUIC), aka TCP/2, which multiplexes connections between two endpoints using UDP. However, understanding TCP can help explain the motivations for implementing QUIC.
 
@@ -152,7 +155,7 @@ Online multiplayer video games or video streaming may leverage UDP. There's no v
 ### Reliable communications
 TCP uses segments (not packets) that let receivers detect missing, duplicate, corrupted, and out of order data. Each segment is associated with a timer; if a receiver does not acknowledge the segment, it is resent.
 
-Operating systems manage the **sockets** the store connection states: opening, established, closing. There are more than 3 states, but this keeps it simple.
+Operating systems manage **sockets** that store connection states: opening, established, and closing. There are more than 3 states, but we'll mention these three to keep things simpler.
 
 #### Opening and the TCP handshake
 The TCP handshake introduces a full round-trip before any app data is sent. Until a connection is opened the bandwidth is effectively zero. The faster a connection is established, the sooner communication can begin. Ergo, reducing round-trip time by moving servers next to each other reduces the cold start penalty.
@@ -162,7 +165,7 @@ The TCP handshake introduces a full round-trip before any app data is sent. Unti
 Closing the connection, on the other hand, involves multiple round-trips. Additionally, if another connection might occur soon, it doesn't make sense to close the connection so it might stay open.
 
 #### Closing and the TIME_WAIT
-Sockets, and the resources they consume, do not immediately close. They enter a waiting state, where late arriving segments are dropped, so that they aren't considered part of a new connection. If you try to open and close many sockets (ports) in a tight loop, you can hit resource exhaustion on ports.
+Sockets, and the resources they consume, do not immediately close. They enter a waiting state, where late arriving segments are dropped, so that they aren't considered part of a new connection by mistake. If you try to open and close many sockets (ports) in a tight loop, you can hit resource exhaustion on ports.
 
 #### Established connections and congestion control
 Once communication is started, the sender tries to avoid bombing the receiver with a ton of data. The receiver will shoot back it's buffer size to the sender, so that it doesn't get overwhelmed. TCP is rate-limited just like rate limiting on API key or IP address.
@@ -216,7 +219,7 @@ Key values in the certificate are:
 - The **signature algorithm** used by the certificate authority to sign the certificate.
 - A digital **signature** used to verify the authenticity of the certificate.
 
-Now, each certificate is chained to an issuing identity, another CA, that granted the certificate. This creates a chain of certificates. The top-level, final certificate is the root CA, like Let's Encrypt.
+Now, each certificate is chained to an issuing identity, another CA, that granted the certificate. This creates a chain of certificates. The top-level, final certificate is from a root CA. For example, Let's Encrypt has a top-level, root CA.
 
 Here's an example of a website (service), intermediate, and root CA chain.
 ![Diagram of the certificate chain](../diagrams/out/certificate-chain/certificate-chain.svg)
@@ -229,21 +232,27 @@ We use a chain of certificates because:
 
 Note that a common mistake is to let the certificates expire, a single point of failure for your whole web stack's security. This'll cause all clients to not trust you. Automating certificate replacement is worth the effort at scale.
 
+TODO: How can we automate certificate replacement? What service does this?
+
 #### Data integrity
-With encryption we can prevent others from reading the data. With authentication we can prove who we're talking with. However, even with all this, bits could get flipped accidentally or maliciously. A hash-based message authentication code (HMAC) is sent along during TLS. Note that TCP's checksum can fail to detect errors for 1 in 16 million to 1 in 10 billion packets. So, with packets of 1KB in size, it happens once in 16 GB to 10 TB of data transmitted.
+To recap,
+- Encryption prevents others from reading data. All the bad actors would see is an obfuscated mess of data.
+- Authentication proves we're communicating with the computers we expect, not some bad actor.
+
+Even with encryption and authentication, bits can get flipped accidentally or maliciously during transit. Therefore, a hash-based message authentication code (HMAC) is sent along during TLS. Note that TCP's checksum can fail to detect errors for 1 in 16 million to 1 in 10 billion packets. So, with packets of 1KB in size, it happens once in 16 GB to 10 TB of data transmitted.
 
 ### Discovery and DNS
 [This video](https://www.youtube.com/watch?v=drWd9HIhJdU) is a solid deep dive into DNS and is worth a watch if you have the time. Even the first 15 minutes is valuable.
 
 IP addresses are cool and all, but we need a way to lookup the IP addresses of servers. There's 2^128 IPv6 and 2^32 IPv4 addresses. Good luck remembering them. Worse yet, IP addresses of servers change all the time. Sometimes the admins need to move requests to a different cluster or spread load among many clusters. DNS helps with this.
 
-Funnily enough, DNS is its own layer 7 protocol.
+Yet perhaps ironically, DNS is its own layer 7 protocol.
 
 Anyway, the get-ip-address-from-domain-name is done via Domain Name System (DNS) and DNS resolution.
 
 We're going from `www.amazon.com` to `192.0.2.1` in IPv4 or `2001:d68::1` in IPv6.
 
-You can, of course, slap a port and IP address into the URL bar, but that's a lot of work. Instead we can take the domain name like something.com and resolve it into its IP address 1.2.3.4.
+You can, of course, slap a port and IP address into the URL bar, but that's a lot of work. Instead we can take the domain name like something.com and resolve it into an IP address like 1.2.3.4.
 
 1. If it's a new domain name, the packets are routed to your ISP's DNS resolver. Your browser will cache IP addresses for domain names to save time.
 2. The ISP's resolver will iteratively resolve the hostname for clients. It will also cache results.
@@ -257,7 +266,7 @@ Again, the results are typically cached along the way. Similar to HTTP caching, 
 
 In terms of resiliency, DNS is single point of failure since normal humans simply won't find the IP address of your server and type it in to the browser URL. If, there's a failure and the TTL is stale, we could still try returning the stale result. Continuing to operate or partially operate while a dependency is down is called static stability.
 
-Note that DNS used to be in plaintext, but now it uses TLS. Yay.
+Note that DNS used to be in plaintext, but now it uses TLS. Yay, security.
 
 ### Application programming interfaces
 Once we can create semi-reliable and secure connections, we can finally discuss having a client invoke operations on a server. Typically, this is done through application programming interfaces (APIs). APIs can be **direct** or **indirect**.
@@ -277,7 +286,7 @@ Now, for clients and servers both, requests and responses can be handled in sync
 - Responses are implicitly or explicitly labeled as cacheable or non-cacheable. If cacheable, the client can reuse the response.
 
 #### Synchronous HTTP requests
-After the client sends a request, it can simply block until the server responds. While "simple" this typically degrades the user experience quickly and wastes CPU time. We could be doing other stuff while waiting on this request. Note, performing synchronous HTTP requests is typically seen as un-cool.
+After the client sends a request, it can simply block until the server responds. This is called a synchronous request. It keeps the code straightforward but degrades the user experience quickly and wastes CPU time. We could be doing other stuff while waiting on this request. Again, performing synchronous HTTP requests is typically seen as un-cool.
 
 ```go
 package main
@@ -316,7 +325,7 @@ func main() {
 ```
 
 #### Asynchronous HTTP requests
-Alternatively, many languages like TypeScript, C#, and Go hide callbacks via async and await abstractions. We can avoid having the client freeze while waiting for the server to respond.
+Alternatively, many languages like TypeScript, C#, and Go hide callbacks via async and await abstractions. We can avoid having the client freeze while waiting for the server to respond. This keeps our applications responsive though the calls are more complicated to understand and troubleshoot. They will also consume more resources.
 
 ```go
 package main
@@ -364,25 +373,30 @@ func main() {
 ```
 
 #### Synchronous HTTP responses
-The server receives a request, does some processing, and returns the entire response immediately. This is typically appropriate when the response is under ~10 MB and can be processed by the server relatively quickly, say in under ~60 seconds. For example, getting a single product's details would typically be straightforward. Listing all products would also be suitable, but the client and server may have to perform paging to get the entire list.
+For synchronous operations, the server receives a request, does some processing, and returns the entire response as soon as possible. This is typically appropriate when the response is under ~10 MB and can be processed by the server relatively quickly. A quick response is typically under 60 seconds though even this might be considered slow for some endpoints. For example, getting a single product's details would typically be straightforward and should be fast. Listing all products would also be suitable, but the client and server may have to perform paging to get the entire list to keep a resonable response size and speed.
 
 #### Asynchronous HTTP responses
 Similar to synchronous, the server receives a request, initiates processing, but only returns partial or intermediate results. Clients will need to check back later to determine when processing is completed and where to get the results. This is appropriate for long running processes greater than ~60s or those with greater than ~10MB of data may benefit from this. Clients may be able to poll the processing status or they could provide a postback for the server to call later.
 
 #### HTTP versions
+TODO: Author section about different HTTP versions that are out now.
 
 ### Messaging
-Messaging is an indirect form of communication where data are passed through a message broker. This nicely decouples the services. Messaging is typically suitable for processes that take a long time or require large amounts of data.
+Messaging is an indirect form of communication where data are passed through a _message broker_. Similar to HTTP, this is a way of sending and receiving data but in an asynchronous way. Messaging decouples the services; it disconnects producers of messages from consumers. Messaging is typically suitable for processes that take a long time or require large amounts of data.
 
-Pub/Sub, ServiceBus, and RabbitMQ, are all examples of message queue providers. Like HTTP requests, messages typically have header and body data as well as a unique message ID. Also, messages can be stored in JSON, protobuf, and so on. Some brokers even provide support for native objects like Azure. Messages are typically only removed from the broker once the consumer - the service that actually receives and uses the message -  successfully processes the message.
+TODO: An example JSON message.
+TODO: A consumer, broker, and producer diagram.
+
+Pub/Sub, ServiceBus, and RabbitMQ, are all examples of message queue providers. Like HTTP requests, messages typically have header and body data as well as a unique message IDs. Messages themselves can be stored in JSON, protobuf, and other formats. Some message brokers even provide support for native objects. Azure Service Bus provides direct support for serializable C# objects. Messages are typically only removed from the broker once the consumer - the service that actually receives and uses the message - successfully reads and processes the message. If the consumer fails, the message will be tried again.
 
 However, unlike request-response via HTTP transactions, message queues are inherently asynchronous. Furthermore, messages can be queued within the broker even if the message consumers are down.
 
 Consumers can choose to process multiple messages at a time, a.k.a. batch processing or message batches. This increases processing latency of individual messages but does improve the applications throughput. This extra latency is typically an acceptable tradeoff and should be considered.
 
-Message queues are not a silver bullet and there are many issues to consider:
+Message queues are not a silver bullet. There are many issues and tradeoffs to consider:
 - The broker adds additional latency through additional the queue itself and more communication.
 - There is a dependency on the broker itself. It it goes down, so does your system.
+- Message brokers are not free. It costs money to store and transmit messages in a way.
 - Not all message queues are durable. Non-durable queues will lose all messages if the broker crashes.
 - This is a form of sequential consistency. Consumers lag producers.
 - There are similar problems to the IP protocol. Messages can be missed, dropped, duplicated, and arrive out of order. Note that some brokers provide message de-duplication.
@@ -391,7 +405,7 @@ Message queues are not a silver bullet and there are many issues to consider:
 - Consumers might be unable to keep up with producers and the queue which will cause a backlog of messages to accrue. This can be due to not enough consumer replicas, outages, and errors. Poisonous messages, those that repeatedly fail, can waste consumer time and degrade the entire system.
 - Completely bad or poisoned messages can be dumped to a dead letter channel for manual inspection and correction by a human. This, of course, takes time. Alternatively, we can decide to drop (delete/ignore) bad messages, but we this means we might miss something important.
 - Message queues are partitioned and bring along the same issues that partitioning brings. Messages may not arrive in order. Also, partitions can become "hot" and consumers might not be able to keep up. Message shuffling among the various partitions can reduce throughput.
-- *Exactly once processing* does not exist. *At least once and maybe more* can lead to issues. Therefore, we can require messages to be idempotent, so that we can simulate exactly once processing.
+- *Exactly once processing* does not exist. Our choice of *at least once but sometimes more than once* processing can lead to odd issues. Therefore, we can require messages to be idempotent, to simulate exactly once processing. TODO: This needs more explanation.
 - In fact, you may need to choose between *at most once but maybe zero* or *at least once but maybe more* processing.
 - Still idempotent messages will not cure everything. Say we create a consumer that sends an email to a customer when it receives a message. However, due to a bug, the consumer crashes *immediately* after successfully sending the email and is unable to acknowledge (ACK) the message. The consumer and broker will simply try again and send another email up to some max retry limit, if there even is a retry limit. One way to potentially resolve this is by checking with the SMTP provider via an API, if available.
 
@@ -417,16 +431,23 @@ You other special types of queues.
 ## Coordination
 [Top](#system-design)
 
-To be blunt, getting multiple computers on an asynchronous network to agree on something as simple as the number of visitors to a page can become surprisingly hard. This section really gets to the question of "Do you want the computers to give you the same answer or do you want them to give you an answer quickly? Fast or accurate?" And fast-or-accurate is a spectrum; sometimes sacrificing some accuracy is totally fine and makes for a great solution. And sometimes it doesn't.
+To be blunt, getting multiple computers in an asynchronous network to agree on anything, even something as simple as the number of page visits can become surprisingly hard. This section really gets to the question of "Do you want the computers to give you the same answer or do you want them to give you an answer quickly?" This is not a binary choice; fast-or-accurate is spectrum that we can choose from.
 
-Note that there are more tradeoffs than just fast-or-accurate. For example, eventual consistency can create weird looking errors and maintenance headaches.
+Sometimes we choose to sacrifice accuracy to boost performance. For example, A count of page visits is typically low-stakes. Therefore, a slightly out-of-date count of page visits is acceptable. In this case, we can choose to sacrifice accuracy to show users an answer sooner, with less computational overhead.
+
+On the flip side, we may need high accuracy for important decision making. TODO: Give an example.
+
+Note that there are more tradeoffs than just fast-or-accurate. For example, choosing to use eventual consistency, described below, can create weird looking errors and maintenance headaches. TODO: Explain this.
 
 ## Clocks
 
 ## Consensus
 
-### Raft
+### Raft Consensus
 To understand Raft consensus and leader election from a high level, checkout [this great visualization from The Secret Lives of Data](https://thesecretlivesofdata.com/raft/). It does a great job of showing leader election, heart beats, and what happens during network partitions.
+
+### Paxos Consensus
+TODO: Explain paxos which could probably take several books by itself.
 
 ### CockroachDB transaction timestamps
 CockroachDB uses a computer's physical clock for commit timestamps and also adds an upper bound with the maximum clock offset for the entire cluster. The interval is `[timestamp, timestamp + offset]`. As long as other transactions do not occur during this interval, everything proceeds normally. For example, in the boring case, if T1 has an interval of [0, 10] and T2 has interval of [20, 30], then T2 will read the values and overwrite as needed.
@@ -445,15 +466,16 @@ Engineering is, in part, about tradeoffs. Distributed systems are no different. 
 So, while helpful, CAP is limited in its practical application. This is, again, about tradeoffs. The PACELC theorem, an extension of CAP, expresses this as, when a network is partitioned (P), choose between availability (A) and consistency (C). Else, when operating normally (E), choose between latency (L) and consistency (C). We see that this is not some binary choice between AP and CP, but rather a spectrum of tradeoffs between the various consistency models and latency. Indeed, some systems like [Azure's Cosmos DB](https://learn.microsoft.com/en-us/azure/cosmos-db/consistency-levels) allow you to choose the consistency model you want which is neat.
 
 ### Consistency
-Warning: This sections discusses CAP consistency for distributed systems. The concept of consistency discussed in ACID and CALM are different things!
+Warning: This sections discusses CAP consistency for distributed systems. Consistency discussed in ACID and CALM is different!
 
-With that in mind, distributed consistency models are different strategies for keeping computers on the same page in terms of data. Consistency models are a set of guarantees - or lack of guarantees - about what state the data will be in when you ask certain nodes.
+With that warning in mind, we are going to discuss *distributed consistency models*. Distributed consistency models are different strategies for keeping multiple computers, all talking on an asynchronous network, on the same page in terms of data.
 
-Put another way, distributed systems are often modeled around consistency models which define how updates to a distributed system are observed. With different models, you may see data visibility, ordering of operations, performance differences, fault tolerance, ease of implementation, and ease of maintenance.
+This can be nebulous on first pass, so I will describe this in three ways:
+1. Agreeing on grocery shopping each week takes communication. And communication takes time. Getting groceries is much faster if I don't communicate with my spouse, but my spouse might like to have a say in what we're eating for the week. We might have different answers about what we're eating until we talk it out. Likewise, to get two computers to agree on a value, they need to communicate, and this communication still takes time. The computers can give you an answer sooner, but you might get different values if you ask different computers! In other words, as a system becomes more available, it becomes less consistent.
+2. Put another way, these consistency models are a set of guarantees - or lack of guarantees - about what state the data will be in when you ask certain nodes. Again, at a high-level, these models are describing how accurate or how quickly a group of computers can give you an answer.
+3. Put yet another way, distributed systems are often modeled around how updates to a distributed system are observed. With different models, you may see data visibility, ordering of operations, performance differences, fault tolerance, ease of implementation, and ease of maintenance.
 
-Let's describe this in a third, easier way. To get two computers to agree on a value, they need to communicate, and communication takes time. However, the computers can give you an answer sooner, but you might get different values if you ask different computers! In other words, as a system becomes more available, it becomes less consistent.
-
-For example, say you have two computers serving a webpage. If you ask the computers how many visitors a single page has received, you could get two different answers! They need to share with each other how many visits they've received. Maybe one computer has an old value and hasn't been informed of visits from the other computer yet. Alternatively, instead of waiting for the computers to agree, we can increase performance and give you a maybe not up-to-date count of the visits.
+For example, say you have two computers serving a webpage. If you ask the computers how many visitors a single page has received, you could get two different answers! They need to share how many visits each has received. Maybe one computer has an old value and hasn't been informed of visits from the other computer yet. Alternatively, instead of waiting for the computers to agree, we can increase performance and give you a maybe not up-to-date count of the visits.
 
 To be blunt, there's a ton of these models, so we'll cover the main ones.
 
@@ -465,15 +487,15 @@ Strong consistency ensures all nodes have the same view of data at any given tim
 There are a few ways we can build distributed systems to achieve strong consistency: consensus algorithms like Paxos or Raft, quorum (majority) of nodes agreeing on a change, and chain replication where only the head node accepts reads and writes.
 
 ChatGPT says,
-> "Strong consistency is like having a rule that everyone, including friends in different rooms, always has the same information at the same time. If you say something to Alice, all your friends instantly know about it. It's like the information spreads quickly to everyone."
+> "Strong consistency is like having a rule that everyone, including friends in different rooms, always have the same information at the same time. If you say something to Alice, all your friends instantly know about it. It's like the information spreads to everyone [and they all agree on the same answer]."
 
 #### Sequential consistency
-Sequential consistency ensures operations occur in the same order for observers but does not make any real-time guarantees about when an operation's side effect becomes visible. There's a boost in performance but we drop some consistency on the ground. A read from Server A may appear different than Server B, but the operations are sequential so Server A and B will eventually converge and agree. In other words, the replicas are diverging on their view of the world.
+Sequential consistency ensures operations occur in the same order for observers but does not make any real-time guarantees about when an operation's side effect becomes visible. There's a boost in performance but we drop some consistency on the ground. Reads from Server A may appear different than Server B, but the operations are sequential so Server A and B will eventually converge and agree. In other words, the replicas may diverge on their view of the world temporarily.
 
 A producer/consumer system, synchronized with a message queue, is an example of a sequential consistency. The consumer lags behind the producer. Another example could be chain replication where head accepts writes and the tail serves reads.
 
 ChatGPT says,
-> "Now, let's say you and Alice have regular walkie-talkies, but you both agree to take turns talking. So, the messages go back and forth in the order you send them. It's like having a clear order for your conversation."
+> "Let's say you and Alice have regular walkie-talkies, but you both agree to take turns talking. So, the messages go back and forth in the order you send them. It's like having a clear order for your conversation."
 
 #### Causal consistency
 Causal consistency relaxes some guarantees of strong in favor of speed. Causal guarantees that causally related operations are in a consistent order and preserves causality. For many applications, it's considered "consistent enough", easier to work with than eventual consistency, and faster than strong consistency.
@@ -481,24 +503,46 @@ Causal consistency relaxes some guarantees of strong in favor of speed. Causal g
 Before we continue, we need to discuss the CALM theorem quickly. So, stay CALM (Get it? Stay calm!!? About the theorem? Funny, right?)
 
 ##### The CALM theorem
-The Consistency As Logical Monotonicity (CALM) theorem uses logic to reason about distributed systems and introduces the idea of monotonicity in the context of logic. Furthermore, it helps give us a framework to determine if we can move coordination off the critical path. That is, CALM tells us if we can get to coordination-free distributed implementations but only if the system is monotonic.
+The Consistency As Logical Monotonicity (CALM) theorem uses logic to reason about distributed systems and introduces the idea of monotonicity in the context of logic.
 
-Logically monotonic means that the output only further refines the input and there's no taking back any prior input.
+Very important note: The consistency in CALM is not the same as the consistency in CAP or distributed systems. With CALM, we're referring to the consistency of a program's output. Context is important when discussing consistency.
 
-Very important note: The consistency in CALM is not the same as the consistency in CAP or distributed systems. With CALM, we're referring to the consistency of a program's output. We'll also see a different definition of consistency when discussing transactions and ACID. Context is important when discussing consistency.
+Anyway, check out the [Keeping Calm PDF](https://arxiv.org/pdf/1901.01930.pdf) for a great, detailed description.
 
-Variable assignment is non-monotonic. When you assign something to a variable, the previous value is gone forever. Take a counter value that does
+In short, the CALM theorem gives us a framework to determine if we can move coordination off the critical path. TODO: This needs a better explanation than this. That is, CALM tells us we can get to coordination-free distributed implementation, but only if the system is logically monotonic.
 
-write(1), write(2), write(3) => 3
-but then if they show up out of order:
-write(1), write(3), write(2) => 2
+_Logically monotonic_ means that the output only further refines the input and there's no taking back any prior input.
+
+For example, variable assignment is non-monotonic. When you assign something to a variable, the previous value is gone forever. On the other hand, if we stored every value we assigned along with a timestamp, this would let our system be logically monotonic.
+
+Take a counter value that writes a value.
+
+```go
+var value int
+func write(x int) {
+  value = x
+}
+
+write(1)
+write(2)
+write(3) // 1, 2, and 3, like we expected
+```
+
+But what if our write calls show up out of order:
+```go
+write(1)
+write(3)
+write(2) // Uhoh, we expected 3 to be last, not 2!
+```
 
 We end up with the wrong value.
 
 In contrast, incrementing allows us to reorder in any way and still get the correct output:
-increment(1), increment(1), increment(1) => 3
-
-Check out [Keeping Calm PDF](https://arxiv.org/pdf/1901.01930.pdf) for a much better and detailed description.
+```go
+increment(1)
+increment(1)
+increment(1) // No matter how you change the order, the end result is 3
+```
 
 ##### Causal consistency continued
 Back to causal consistency. Causal maintains happened-before order (the causal order) among operations. This makes causal attractive for many applications because:
@@ -507,6 +551,8 @@ Back to causal consistency. Causal maintains happened-before order (the causal o
 
 This requires that nodes *agree* on the causally related operations but may *disagree* on the order of unrelated ones. Put another way, the nodes preserve the logical order.
 
+// TODO: How does any of this tie back to CALM theorem?
+
 Causal systems are typically backed by conflict-free replicated data types (CRDTs), such as
 - *Last writer wins (LWW)* - Values are associated with a logical timestamp/version. When the value is broadcasted, nodes only keep the greatest timestamp. Conflicts due to concurrent updates are usually resolved by taking the greater timestamp, but this might not always make sense.
 - *Multi-value (MV)* - Store the operations in a log of operations that all nodes share. New values are inserted into the MV register. Systems will need to share out their MVs.
@@ -514,8 +560,13 @@ Causal systems are typically backed by conflict-free replicated data types (CRDT
 ChatGPT says,
 > "With causal consistency, you and your friends agree on some logical order for the messages. If you tell something important to Alice and then mention it to Bob, everyone knows that Alice got the message first. It's about maintaining the cause-and-effect relationship."
 
+TODO: We need to talk about reliable and gossip broadcast.
+
 #### Causal+ consistency
 TODO: Discuss causal+ and how it's different from Causal. We need to talk about CRDT types too.
+
+#### Common CRDT Types
+TODO: We need to discuss the various CRDT types
 
 #### Eventual consistency
 Eventual consistency relaxes guarantees of strong and sequential. Given enough time, all nodes will converge to the same result. Note that, during updates or partitions, nodes may have different values. For example, reading from Server A and B may yield a stale, earlier result which is very confusing.
@@ -526,6 +577,9 @@ Regardless, eventual can be appropriate tradeoff for certain systems. Slightly d
 
 ChatGPT says,
 > "Now, suppose your friends have regular walkie-talkies, and sometimes messages take a while to reach everyone due to delays. Eventual consistency says that, given enough time without any more messages, eventually, everyone will have the same information. It's about waiting until things settle down."
+
+#### Anti-Entropy
+TODO: We need to discuss anti-entropic methods to help get us to convergence.
 
 ### Transactions
 [Top](#system-design)
@@ -539,7 +593,7 @@ UPDATE table2 SET summary=@A WHERE type=1;
 COMMIT;
 ```
 
-Note that if the transaction is never finally committed via `COMMIT` or reversed via `ROLLBACK`, you could give yourself a bad time. The transactions hold locks, create resource contention, and so on. So don't forget and make sure your SQL is somewhat speedy!
+Note that if the transaction is never finished via `COMMIT` or reversed via `ROLLBACK`, you could give yourself a bad time. The transactions hold locks, create resource contention, and so on. So don't forget and make sure your SQL is somewhat speedy!
 
 See more transaction usage in [MySQL](https://dev.mysql.com/doc/refman/8.0/en/commit.html) or [SQL Server](https://learn.microsoft.com/en-us/sql/t-sql/language-elements/transactions-transact-sql?view=sql-server-ver16).
 
@@ -571,18 +625,31 @@ Isolation gives us an illusion that transactions run one after another, as if th
 [Jepsen](https://jepsen.io/consistency) provides a really great, clickable chart with details on many kinds of DB consistency models. Here's an image of it:
 ![DB consistency models diagram](../imgs/jepsen_io_consistency.png)
 
+Note this Jepsen model has the same problem as the old school food pyramid. (Sugar is not better than vegetables because it's higher up on the chart!) Models that are higher up provide better accuracy but are slower. For example, Serializable is not better than Read Committed because it is on top; Read Committed is the default for many databases. Using Serializable everywhere could cause your website to come to a grinding halt.
+
 There's a lot of models, but we'll focus on the main ones.
 
-**Don't get these consistency models confused with consistency in distributed systems or in the CALM theorem. Context matters here!**
+Another very important warning: **Don't get these consistency models confused with consistency in distributed systems or the CALM theorem. Context matters here! This section is about DB consistency.**
 
 ##### Serializability
-Serializability is a guarantee about a transaction or group of operations concerning more than one object, and still preserves the correctness of the database. However, unlike serializability, there are no real-time constraints on the ordering of transactions. Serializable operations are not composable or provide deterministic ordering of events. It only requires that some equivalent serial execution exists.
+Serializability is a guarantee about a transaction - a group of operations concerning more than one object - and preserving the correctness of the database. However, unlike _strict serializability_, there are no real-time constraints on the ordering of transactions. In other words, Serializable operations may reorder transactions for efficiency, but it will still yield the correct, logical result. Serializable operations are not composable or provide deterministic ordering of events. It only requires that some equivalent serial execution exists.
 
-Using Google's same example, we have two transactions:
-1. Transaction T1 (Deposit): Move $200 into the savings account.
-2. Transaction T2 (Debit): Debits $150 from the checking account.
+Suppose we have two bank transactions for a checking account. Assume that the account has $0 initially. The first transaction, T1, puts $200 into checking account. The second transaction, T2, spends $150 from the account.
 
-In a serializable system, there could potentially - potentially being the keyword here - be an overdraft because T2 occurs before T1. The end result will be the same, however.
+Again,
+1. Transaction T1: Deposit $100
+2. Transaction T2: Spend $25
+3. Final amount $75
+
+In a serializable system, there could potentially - potentially being the keyword here - be an overdraft if T2 occurs before T1. Databases may reorder transactions such that we spend $25 before we deposit $100. Databases may rearrange transactions on the fly.
+- If two transactions access data at the same time, the database may decide a winner and a loser transaction. This can be based on locks, resources, and so on.
+- The DB may batch writes together for efficiency, though it will still maintain logical order.
+
+1. Transaction T2: Spend $25. Oh no! We don't have any money!
+2. Transaction T1: Deposit $100
+3. Final amount: $75
+
+Even if T2 occurs before T1, serializable guarantees that the end result will be $50 in the checking account.
 
 Whew, are we done!? No.
 

@@ -14,15 +14,11 @@ const (
 type Replicas struct {
 	Router *gin.Engine
 	client resty.Client
-
-	MyId  int
-	hosts []string
+	hosts  []string
 }
 
-func New(router *gin.Engine, resty *resty.Client, myId int, hosts ...string) *Replicas {
+func New(router *gin.Engine, resty *resty.Client, hosts ...string) *Replicas {
 	replicas := &Replicas{
-		MyId: myId,
-
 		Router: router,
 		client: *resty,
 		hosts:  hosts,

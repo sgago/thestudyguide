@@ -30,17 +30,15 @@ services:
       context: ./
       dockerfile: dockerfile
     expose:
-      - 8080  # Expose internal port without publishing it to the host
+      - "8080"  # Expose internal port without publishing it to the host
     environment:
-      - PORT=8080
-      - SERVICE_NAME=goginair
-      - SERVICE_TAGS=http
-      - SERVICE_ADDRESS=goginair
-      - CONSUL_ADDRESS=consul:8500
+      PORT: 8080
+      SERVICE_NAME: goginair
+      SERVICE_TAGS: http
     labels:
-      - traefik.enable=true  # Enable Traefik for this service
-      - traefik.http.routers.goginair.rule=Host(`goginair.docker.localhost`)  # Route traffic to goginair.local
-      - traefik.http.services.goginair.loadbalancer.server.port=8080  # Forward traffic to internal port 8080
+      - "traefik.enable=true"  # Enable Traefik for this service
+      - "traefik.http.routers.goginair.rule=Host(`goginair.docker.localhost`)"  # Route traffic to goginair.local
+      - "traefik.http.services.goginair.loadbalancer.server.port=8080"  # Forward traffic to internal port 8080
     networks:
       - goginair-net
     depends_on:
