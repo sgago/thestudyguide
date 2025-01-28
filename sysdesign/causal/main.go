@@ -47,24 +47,33 @@ func main() {
 
 	resty := resty.New().SetTimeout(15 * time.Second)
 
-	// TODO: This does not get a current list of replicas from Consul.
-	replicas := replicas.New(
-		router,
-		resty,
-		consul.Services()...)
+	// TODO: Chaining like this ugly, make a better counter Ctor
+	replicas := replicas.New(router, resty, consul, envcfg.HostName())
+	counter := counter.New(replicas, lamport.New())
 
-	counter := counter.New(replicas, lamport.New(), envcfg.HostName())
+	router.GET(incrPath, func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"replica": envcfg.HostName(),
+			"count":   counter.Get(),
+			"time":    counter.Time(),
+		})
+	})
 
 	router.POST(incrPath, func(c *gin.Context) {
 		fmt.Println(("received increment request"))
 		counter.Increment()
 		c.Writer.WriteHeader(http.StatusOK)
 
-		//TODO: Put a body here so we can see the count
+		c.JSON(http.StatusOK, gin.H{
+			"replica": envcfg.HostName(),
+			"count":   counter.Get(),
+			"time":    counter.Time(),
+		})
 	})
 
 	go func() {
-		fmt.Println("Starting server")
+		log.Println("Starting server for", envcfg.HostName())
+
 		if err := router.Run(); err != nil {
 			log.Fatalf(("Failed to start server: %v"), err)
 		}

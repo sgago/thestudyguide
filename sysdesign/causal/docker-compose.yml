@@ -8,7 +8,7 @@ services:
       - goginair-net
       
   traefik:
-    image: traefik:v3.2
+    image: traefik:v3.3
     command:
       - --api.insecure=true
       - --providers.Docker
@@ -21,8 +21,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - goginair-net
+
+  whoami:
+    # A container that exposes an API to show its IP address
+    image: traefik/whoami
+    labels:
+      - "traefik.http.routers.whoami.rule=Host(`whoami.docker.localhost`)"
     depends_on:
-      - consul
+      - traefik
+    networks:
+      - goginair-net
 
   goginair:
     image: steve8550/goginair:latest
@@ -39,7 +47,7 @@ services:
       - CONSUL_ADDRESS=consul:8500
     labels:
       - traefik.enable=true  # Enable Traefik for this service
-      - traefik.http.routers.goginair.rule=Host(`goginair.docker.localhost`)  # Route traffic to goginair.local
+      - traefik.http.routers.goginair.rule=Host(`goginair.localhost`)  # Route traffic to goginair.local
       - traefik.http.services.goginair.loadbalancer.server.port=8080  # Forward traffic to internal port 8080
     networks:
       - goginair-net
@@ -47,7 +55,7 @@ services:
       - consul
       - traefik
     deploy:
-      replicas: 3  # Scale the number of replicas
+      replicas: 2  # Scale the number of replicas
       restart_policy:
         condition: on-failure
 

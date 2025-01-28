@@ -1,7 +1,7 @@
 package broadcast
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -14,8 +14,10 @@ type Broadcast struct {
 	verb  string
 	urls  []string
 
-	onSuccessFunc func(resp *resty.Response)
-	onErrorFunc   func(err error)
+	beforeFunc   func(req *resty.Request)
+	successFunc  func(resp *resty.Response)
+	netErrorFunc func(err error)
+	appErrorFunc func(resp *resty.Response)
 }
 
 type BroadcastResponse struct {
@@ -58,16 +60,16 @@ func (b *Broadcast) SendC() <-chan *BroadcastResponse {
 			req.Method = b.verb
 			req.URL = u
 
+			b.maybeBefore(req)
+
 			// Send the request
 			resp, err := req.Send()
 
-			// Handle success or failure
-			if err != nil {
-				fmt.Printf("Error sending to %s: %v\n", u, err)
-			} else {
-				if b.onSuccessFunc != nil && resp.StatusCode() == http.StatusOK {
-					b.onSuccessFunc(resp)
-				}
+			b.maybeOnNetError(err)
+
+			if resp != nil {
+				b.maybeOnSuccess(resp)
+				b.maybeOnAppError(resp)
 			}
 
 			// Send the response (or error) back on the channel
@@ -84,16 +86,69 @@ func (b *Broadcast) SendC() <-chan *BroadcastResponse {
 	return out
 }
 
-// OnSuccess sets the function to be executed on a successful response.
-func (b *Broadcast) OnSuccess(do func(resp *resty.Response)) *Broadcast {
-	b.onSuccessFunc = do
+func (b *Broadcast) Send() *BroadcastResponse {
+	return <-b.SendC()
+}
+
+func (b *Broadcast) Before(do func(req *resty.Request)) *Broadcast {
+	b.beforeFunc = do
 	return b
 }
 
-// OnError sets the function to be executed on error.
-func (b *Broadcast) OnError(do func(err error)) *Broadcast {
-	b.onErrorFunc = do
+func (b *Broadcast) maybeBefore(req *resty.Request) {
+	if b.successFunc != nil {
+		b.beforeFunc(req)
+	}
+}
+
+// OnSuccess sets the function to be executed on a successful response.
+func (b *Broadcast) OnSuccess(do func(resp *resty.Response)) *Broadcast {
+	b.successFunc = do
 	return b
+}
+
+func (b *Broadcast) maybeOnSuccess(resp *resty.Response) {
+	if resp != nil && resp.IsSuccess() {
+		log.Printf("Success sending to %s\n", resp.Request.URL)
+
+		if b.successFunc != nil {
+			b.successFunc(resp)
+		}
+	}
+}
+
+// OnError sets the function to be executed on a network-level error.
+// This is for handling timeouts, connection errors, etc.
+func (b *Broadcast) OnNetError(do func(err error)) *Broadcast {
+	b.netErrorFunc = do
+	return b
+}
+
+func (b *Broadcast) maybeOnNetError(err error) {
+	if err != nil {
+		log.Printf("Network error: %v\n", err)
+
+		if b.netErrorFunc != nil {
+			b.netErrorFunc(err)
+		}
+	}
+}
+
+// OnError sets the function to be executed on an application-level error.
+// This is for handling 4xx and 5xx responses.
+func (b *Broadcast) OnAppError(do func(resp *resty.Response)) *Broadcast {
+	b.appErrorFunc = do
+	return b
+}
+
+func (b *Broadcast) maybeOnAppError(resp *resty.Response) {
+	if resp != nil && resp.IsError() {
+		log.Printf("Application error: %v\n", resp.Error())
+
+		if b.appErrorFunc != nil {
+			b.appErrorFunc(resp)
+		}
+	}
 }
 
 // deepClone manually clones the request, ensuring all headers and settings are copied.

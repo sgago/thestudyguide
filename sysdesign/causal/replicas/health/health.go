@@ -1,7 +1,7 @@
 package health
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"sgago/thestudyguide-causal/broadcast"
 	"sgago/thestudyguide-causal/replicas"
@@ -46,10 +46,13 @@ func (h *Health) broadcast() <-chan bool {
 		result := <-broadcast.
 			Post(req, urls...).
 			OnSuccess(func(resp *resty.Response) {
-				fmt.Println(resp.Request.GenerateCurlCommand())
+				log.Println(resp.Request.GenerateCurlCommand())
 			}).
-			OnError(func(err error) {
-				fmt.Println(err)
+			OnNetError(func(err error) {
+				log.Println(err)
+			}).
+			OnAppError(func(resp *resty.Response) {
+				log.Println(resp.Error())
 			}).
 			SendC()
 
