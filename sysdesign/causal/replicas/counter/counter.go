@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sgago/thestudyguide-causal/broadcast"
-	"sgago/thestudyguide-causal/deduplicator"
+	"sgago/thestudyguide-causal/dedupe"
 	"sgago/thestudyguide-causal/lamport"
 	"sgago/thestudyguide-causal/replicas"
 	"strconv"
@@ -28,46 +28,46 @@ type Counter struct {
 	*replicas.Replicas
 
 	counter atomic.Uint64
-	dedupe  *deduplicator.Deduplicator[uint64]
+	dedupe  *dedupe.Dedupe[uint64]
 	clock   *lamport.Clock
 }
 
 func New(r *replicas.Replicas, c *lamport.Clock) *Counter {
 	incr := &Counter{
 		Replicas: r,
-		dedupe:   deduplicator.New[uint64](1 * time.Minute),
+		dedupe:   dedupe.New[uint64](1 * time.Minute),
 		clock:    c,
 	}
 
 	r.Router.POST(IncrPath, incr.HandleIncrement)
 	r.Router.GET(SyncPath, incr.HandleSync)
 
-	go incr.sync()
+	go incr.StartSync()
 
 	return incr
 }
 
 // Get returns the current counter value.
-func (counter *Counter) Get() uint64 {
-	return counter.counter.Load()
+func (c *Counter) Get() uint64 {
+	return c.counter.Load()
 }
 
 // Time returns the current Lamport clock value.
-func (counter *Counter) Time() uint64 {
-	return counter.clock.Get()
+func (c *Counter) Time() uint64 {
+	return c.clock.Get()
 }
 
-func (counter *Counter) Increment() {
-	counter.process(counter.clock.Inc())
+func (c *Counter) Increment() {
+	c.process(c.clock.Inc())
 }
 
 // process ensures deduplication, broadcasting, and local increment of the counter.
-func (incr *Counter) process(dedupeId uint64) bool {
-	if incr.dedupe.Mark(dedupeId) {
-		incr.clock.Set(dedupeId)
+func (c *Counter) process(dedupeId uint64) bool {
+	if c.dedupe.Mark(dedupeId) {
+		c.clock.Set(dedupeId)
 
-		if <-incr.broadcast() {
-			incr.counter.Add(1)
+		if <-c.broadcast() {
+			c.counter.Add(1)
 			return true
 		}
 	}
@@ -76,19 +76,19 @@ func (incr *Counter) process(dedupeId uint64) bool {
 }
 
 // broadcast sends an increment request to all replicas, including this replica.
-func (counter *Counter) broadcast() <-chan bool {
+func (c *Counter) broadcast() <-chan bool {
 	done := make(chan bool)
 
 	go func() {
 		defer close(done)
 
-		req := counter.Request().
+		req := c.Request().
 			SetHeader("Content-Type", "application/json").
-			SetHeader("X-Deduplication-Id", counter.clock.String()).
-			SetHeader("X-Replica-Id", counter.Self())
+			SetHeader("X-Deduplication-Id", c.clock.String()).
+			SetHeader("X-Replica-Id", c.Self())
 
 		result := <-broadcast.
-			Post(req, counter.Urls(IncrPath)...).
+			Post(req, c.Urls(IncrPath)...).
 			Before(func(req *resty.Request) {
 				log.Printf("Broadcasting to: %s\n", req.URL)
 			}).
@@ -110,38 +110,37 @@ func (counter *Counter) broadcast() <-chan bool {
 }
 
 // HandleIncrement processes incoming increment requests to this replica
-func (counter *Counter) HandleIncrement(c *gin.Context) {
-	dedupeID, err := strconv.ParseUint(c.GetHeader("X-Deduplication-Id"), 10, 64)
+func (c *Counter) HandleIncrement(ctx *gin.Context) {
+	dedupeID, err := strconv.ParseUint(ctx.GetHeader("X-Deduplication-Id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid deduplication ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid deduplication ID"})
 		return
 	}
 
-	replicaID := c.GetHeader("X-Replica-Id")
+	replicaID := ctx.GetHeader("X-Replica-Id")
 	if replicaID == "" {
 		log.Println("Error: missing replica ID")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing replica ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "missing replica ID"})
 		return
 	}
 
-	if !counter.process(dedupeID) {
-		log.Printf("Already processed dedupeId %d, count is %d, time is %d", dedupeID, counter.Get(), counter.Time())
-		c.JSON(http.StatusOK, gin.H{"status": "already processed", "count": counter.Get()})
+	if !c.process(dedupeID) {
+		log.Printf("Already processed dedupeId %d, count is %d, time is %d", dedupeID, c.Get(), c.Time())
+		ctx.JSON(http.StatusOK, gin.H{"status": "already processed", "count": c.Get()})
 		return
 	}
 
-	log.Printf("Incremented! dedupeId %d, count is %d, time is %d", dedupeID, counter.Get(), counter.Time())
-	c.JSON(http.StatusOK, gin.H{"status": "incremented", "count": counter.Get()})
+	log.Printf("Incremented! dedupeId %d, count is %d, time is %d", dedupeID, c.Get(), c.Time())
+	ctx.JSON(http.StatusOK, gin.H{"status": "incremented", "count": c.Get()})
 }
 
-// TODO: Finish anti-entropy mechanism. Should not be random. Could do all or round-robin.
-// sync is an anti-entropy mechanism to synchronize the counter value with other replicas.
-func (counter *Counter) sync() {
+// StartSync is an anti-entropy mechanism to synchronize the counter value with other replicas.
+func (c *Counter) StartSync() {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		urls := counter.OtherUrls(SyncPath)
+		urls := c.OtherUrls(SyncPath)
 
 		if len(urls) == 0 {
 			return
@@ -153,10 +152,10 @@ func (counter *Counter) sync() {
 			log.Println("Random url:", u)
 
 			syncResp := &syncResp{}
-			resp, err := counter.RestyCli.R().
+			resp, err := c.RestyCli.R().
 				SetHeader("Content-Type", "application/json").
-				SetHeader("X-Deduplication-Id", counter.clock.String()).
-				SetHeader("X-Replica-Id", counter.Self()).
+				SetHeader("X-Deduplication-Id", c.clock.String()).
+				SetHeader("X-Replica-Id", c.Self()).
 				SetResult(syncResp).
 				Get(u)
 
@@ -168,13 +167,13 @@ func (counter *Counter) sync() {
 			if resp != nil {
 				log.Printf("Sync received %s, %+v\n", resp.Request.URL, syncResp)
 
-				if syncResp.Time > counter.Time() {
+				if syncResp.Time > c.Time() {
 					log.Printf("Out of sync, count is %d and time is %d\n", syncResp.Count, syncResp.Time)
 
-					counter.counter.Store(syncResp.Count)
-					counter.clock.Set(syncResp.Time)
+					c.counter.Store(syncResp.Count)
+					c.clock.Set(syncResp.Time)
 				} else {
-					log.Printf("In sync, count is %d and time is %d\n", counter.Get(), counter.Time())
+					log.Printf("In sync, count is %d and time is %d\n", c.Get(), c.Time())
 				}
 			}
 		}(url)
@@ -186,9 +185,9 @@ type syncResp struct {
 	Time  uint64 `json:"time"`
 }
 
-func (counter *Counter) HandleSync(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"count": counter.Get(),
-		"time":  counter.Time(),
+func (c *Counter) HandleSync(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, gin.H{
+		"count": c.Get(),
+		"time":  c.Time(),
 	})
 }

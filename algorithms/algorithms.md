@@ -117,7 +117,7 @@ Constant time. A constant set of of operations.
 - Pushing and popping from a stack
 
 ```go
-// Some non-looping, non-recursive code
+// Some constant time code, non-looping and non-recursive
 i = 1
 i = i + 100000
 fmt.Println("more constant time code")
@@ -130,7 +130,7 @@ Log time. Grows slowly. log(1,000,000) is only about 20. You typically see this 
 - Processing number digits
 
 Again, we don't write out the log base and just assume based on context.
-In algebra class, teacher typically means log base 10 or log10(some_number); in programmer world, we mean log base 2 or log2(some_number).
+In algebra class, the teacher typically means log base 10 or log10(some_number); in programmer world, we mean log base 2 or log2(some_number).
 
 ```go
 for i := N; i > 0; i /= 2 {
@@ -139,8 +139,8 @@ for i := N; i > 0; i /= 2 {
 ```
 
 ## O(KlogN)
-Typically, when you need to do a log(N) process K times. Examples:
-- Heap push/pop K times, like merging N sorted lists
+KlogN is when you need to do a log(N) process K times. K is usually a constant. Examples:
+- Heap push/pop K times, like merging N sorted lists K times
 - Binary search K times
 
 ## O(N)
@@ -157,15 +157,15 @@ for i := 0; i < N; i++ {
 ```
 
 ## O(N + M)
-Again, M indicates another input to the algorithm, and N + M occurs when you have two inputs of size N and M. Say you loop once N times and then loop M times after. Unlike K, M means another input to the function.
+M indicates another input to the algorithm, and N + M occurs when you have two inputs of size N and M. Say you loop once N times and then loop M times after that. Unlike K, M means another input to the function.
 
 ## O(V + E)
 For both DFS and BFS on a graph, the time complexity is O(|V| + |E|), where V is the number of vertices and E is the number of edges. The number of edges in a graph could be 1 to |V|^2, we really don't know. So we include both terms here.
 
 ## O(NlogN)
-When we need to do a logN time process N times.
+When we need to do a logN process N times.
 - Divide and conquer, where divide is logN and merge is N
-- Sorting can get down to this.
+- Sorting algorithms like quicksort and mergesort can run in NlogN time.
 
 ## O(NM)
 M usually indicates another direct input to the algorithm, similar to N. This occurs when you have an outer loop running N times and an inner loop running M times.
@@ -251,7 +251,7 @@ N < 20 | 2^N or N! | Brute force or backtracking.
 3000 < N < 10^6 | O(N) or O(NlogN) | 2 pointers, greedy, heap, and sorting.
 N > 10^6 | O(logN) or O(1) | Binary search, math, cycle sort adjacent problems.
 
-Again, guessing the optimal solution from the size of input elements constraint is certainly error prone. This could *maybe suggest a solution for you maybe*.
+Guessing the optimal solution from the size of input elements constraint is obviously a risk. _You're guessing after all_. Regardless, this could *maybe suggest a direction or solution to think about*.
 
 ## Pedantic sidenote
 Skip this section if your new to Big O notation or want to save yourself some time.
@@ -261,18 +261,18 @@ In business, we often use "Big O" loosely to talk about how an algorithm perform
 You see, Big O actually describes the worst complexity of an algorithm-not the expected case-using an upper bound. Take a loop like
 
 ```go
-func pedanticComplexity() {
+func pedantic() {
   for i := 0; i < N; i++ {
     // Constant time work
   }
 }
 ```
 
-The complexity does not grow faster than N for large inputs. Hopefully this makes sense because the loop runs N times. However, the complexity doesn't grow faster than N^2 either, does it? This is one of the reasons why Big O can get confusing in informal discussions.
+The complexity of the pedantic function does not grow faster than N for large inputs. Hopefully this makes sense because the loop runs N times. However, the complexity doesn't grow faster than N^2 either, does it? This is one of the reasons why Big O can get confusing in informal discussions.
 
-N is a tighter, more restrictive bound. N^2 is less accurate but not *technically* wrong. We typically strive to provide the tightest bounds, N in this case.
+N is a tighter, more restrictive bound. N^2 is less accurate but not *technically* wrong. In business and interviews, we typically strive to provide the tightest bounds, N in this case.
 
-If it helps, an interviewer is *usually* asking for Big Theta when they ask for the time complexity. If you feel unsure if they actually want Big O or Big Theta, you can ask and attempt to explain this long pedantic side note.
+If it helps, an interviewer is *almost certainly* asking for Big Theta when they ask for the time complexity. If you feel unsure if they actually want Big O or Big Theta, you can ask and attempt to explain this long side note.
 
 Anyway, this guide is focused on getting a job in industry, not academia. As such, it will use the looser Big O definition to keep the circus moving. Also, this guide will take it a step further and drop the O and paraentheses and simply say N^2 or NLogN to mean O(N^2) and O(NLogN) so that the author can stave off carpel tunnel syndrome a bit longer.
 
