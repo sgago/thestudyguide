@@ -1,0 +1,13 @@
+
+
+### // Get the causal home page
+GET http://localhost:8080/
+
+### // Get the causal health check
+GET http://localhost:8080/health
+
+### // Get causal counter data
+GET http://localhost:8080/increment
+
+### // Increment the causal counter
+POST http://localhost:8080/increment
