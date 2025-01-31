@@ -45,6 +45,7 @@ services:
       - SERVICE_TAGS=http
       - SERVICE_ADDRESS=goginair
       - CONSUL_ADDRESS=consul:8500
+      - IS_LOCAL=false
     labels:
       - traefik.enable=true  # Enable Traefik for this service
       - traefik.http.routers.goginair.rule=Host(`goginair.localhost`)  # Route traffic to goginair.local

@@ -13,37 +13,35 @@ const (
 )
 
 type Replicas struct {
-	Router *gin.Engine
-	Client resty.Client
-	consul *consul.Consul
-	self   string
+	Router    *gin.Engine
+	RestyCli  resty.Client
+	ConsulCli consul.Client
 }
 
-func New(router *gin.Engine, resty *resty.Client, consul *consul.Consul, self string) *Replicas {
+func New(router *gin.Engine, restyCli *resty.Client, consulCli consul.Client) *Replicas {
 	replicas := &Replicas{
-		Router: router,
-		Client: *resty,
-		consul: consul,
-		self:   self,
+		Router:    router,
+		RestyCli:  *restyCli,
+		ConsulCli: consulCli,
 	}
 
 	return replicas
 }
 
 func (r *Replicas) Request() *resty.Request {
-	return r.Client.R()
+	return r.RestyCli.R()
 }
 
 func (r *Replicas) Services() []string {
-	return r.consul.Services()
+	return r.ConsulCli.Services()
 }
 
 func (r *Replicas) Self() string {
-	return r.self
+	return r.ConsulCli.Self()
 }
 
 func (r *Replicas) Others() []string {
-	services := r.consul.Services()
+	services := r.ConsulCli.Services()
 	self := r.Self()
 	var others []string
 

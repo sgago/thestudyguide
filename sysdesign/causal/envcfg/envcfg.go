@@ -6,10 +6,11 @@ import (
 
 type envcfg struct {
 	Port        int    `envconfig:"PORT" default:"8080" required:"true"`
-	HostName    string `envconfig:"HOSTNAME" default:"goginair" required:"false"`
+	HostName    string `envconfig:"HOSTNAME" default:"localhost" required:"false"`
 	ServiceName string `envconfig:"SERVICE_NAME" default:"goginair" required:"false"`
-	ServiceAddr string `envconfig:"SERVICE_NAME" default:"goginair" required:"false"`
+	ServiceAddr string `envconfig:"SERVICE_ADDR" default:"8080" required:"false"`
 	ConsulAddr  string `envconfig:"CONSUL_ADDRESS" default:"consul:8500" required:"false"`
+	IsLocal     bool   `envconfig:"IS_ALONE" default:"true" required:"false"`
 }
 
 var (
@@ -40,4 +41,8 @@ func ConsulAddr() string {
 
 func HostName() string {
 	return e.HostName
+}
+
+func IsLocal() bool {
+	return e.IsLocal
 }

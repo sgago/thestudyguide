@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"sgago/thestudyguide-causal/consul"
@@ -22,16 +21,23 @@ const (
 )
 
 func main() {
-	consul, err := consul.New()
-	if err != nil {
-		log.Fatalf("Failed to create Consul client: %v", err)
+	var consulCli consul.Client
+	var err error
+
+	if !envcfg.IsLocal() {
+		consulCli, err = consul.New()
+		if err != nil {
+			log.Fatalf("Failed to create Consul client: %v", err)
+		}
+
+		if err := consulCli.Register(); err != nil {
+			log.Fatalf("Failed to register service with Consul: %v", err)
+		}
+	} else {
+		consulCli = consul.NewMock()
 	}
 
-	if err := consul.Register(); err != nil {
-		log.Fatalf("Failed to register service with Consul: %v", err)
-	}
-
-	consul.StartTTL()
+	consulCli.StartTTL()
 
 	router := gin.Default()
 
@@ -45,10 +51,10 @@ func main() {
 		})
 	})
 
-	resty := resty.New().SetTimeout(15 * time.Second)
+	restyCli := resty.New().SetTimeout(15 * time.Second)
 
 	// TODO: Chaining like this ugly, make a better counter Ctor
-	replicas := replicas.New(router, resty, consul, envcfg.HostName())
+	replicas := replicas.New(router, restyCli, consulCli)
 	counter := counter.New(replicas, lamport.New())
 
 	router.GET(incrPath, func(c *gin.Context) {
@@ -60,8 +66,8 @@ func main() {
 	})
 
 	router.POST(incrPath, func(c *gin.Context) {
-		fmt.Println(("received increment request"))
 		counter.Increment()
+
 		c.Writer.WriteHeader(http.StatusOK)
 
 		c.JSON(http.StatusOK, gin.H{

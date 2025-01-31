@@ -39,8 +39,8 @@ func New(r *replicas.Replicas, c *lamport.Clock) *Counter {
 		clock:    c,
 	}
 
-	r.Router.POST(IncrPath, incr.handleIncrement)
-	r.Router.GET(SyncPath, incr.handleSync)
+	r.Router.POST(IncrPath, incr.HandleIncrement)
+	r.Router.GET(SyncPath, incr.HandleSync)
 
 	go incr.sync()
 
@@ -58,7 +58,7 @@ func (counter *Counter) Time() uint64 {
 }
 
 func (counter *Counter) Increment() {
-	counter.process(counter.clock.Get() + 1)
+	counter.process(counter.clock.Inc())
 }
 
 // process ensures deduplication, broadcasting, and local increment of the counter.
@@ -109,8 +109,8 @@ func (counter *Counter) broadcast() <-chan bool {
 	return done
 }
 
-// handleIncrement processes incoming increment requests to this replica
-func (counter *Counter) handleIncrement(c *gin.Context) {
+// HandleIncrement processes incoming increment requests to this replica
+func (counter *Counter) HandleIncrement(c *gin.Context) {
 	dedupeID, err := strconv.ParseUint(c.GetHeader("X-Deduplication-Id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid deduplication ID"})
@@ -153,7 +153,7 @@ func (counter *Counter) sync() {
 			log.Println("Random url:", u)
 
 			syncResp := &syncResp{}
-			resp, err := counter.Client.R().
+			resp, err := counter.RestyCli.R().
 				SetHeader("Content-Type", "application/json").
 				SetHeader("X-Deduplication-Id", counter.clock.String()).
 				SetHeader("X-Replica-Id", counter.Self()).
@@ -166,19 +166,15 @@ func (counter *Counter) sync() {
 			}
 
 			if resp != nil {
-				log.Printf("Sync received: %s\n", resp.Request.URL)
+				log.Printf("Sync received %s, %+v\n", resp.Request.URL, syncResp)
 
-				if syncResp != nil {
-					log.Printf("Sync response: %+v\n", syncResp)
+				if syncResp.Time > counter.Time() {
+					log.Printf("Out of sync, count is %d and time is %d\n", syncResp.Count, syncResp.Time)
 
-					if syncResp.Time > counter.Time() {
-						log.Printf("Out of sync, count is %d and time is %d\n", syncResp.Count, syncResp.Time)
-
-						counter.counter.Store(syncResp.Count)
-						counter.clock.Set(syncResp.Time)
-					} else {
-						log.Printf("In sync, count is %d and time is %d\n", counter.Get(), counter.Time())
-					}
+					counter.counter.Store(syncResp.Count)
+					counter.clock.Set(syncResp.Time)
+				} else {
+					log.Printf("In sync, count is %d and time is %d\n", counter.Get(), counter.Time())
 				}
 			}
 		}(url)
@@ -190,7 +186,7 @@ type syncResp struct {
 	Time  uint64 `json:"time"`
 }
 
-func (counter *Counter) handleSync(c *gin.Context) {
+func (counter *Counter) HandleSync(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"count": counter.Get(),
 		"time":  counter.Time(),
