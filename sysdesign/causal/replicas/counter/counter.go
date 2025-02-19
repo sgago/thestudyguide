@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sgago/thestudyguide-causal/broadcast"
+	"sgago/thestudyguide-causal/db"
 	"sgago/thestudyguide-causal/dedupe"
 	"sgago/thestudyguide-causal/lamport"
 	"sgago/thestudyguide-causal/replicas"
@@ -12,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dgraph-io/badger/v3"
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
 )
@@ -30,6 +32,7 @@ type Counter struct {
 	counter atomic.Uint64
 	dedupe  *dedupe.Dedupe[uint64]
 	clock   *lamport.Clock
+	db      *badger.DB
 }
 
 func New(r *replicas.Replicas, c *lamport.Clock) *Counter {
@@ -38,6 +41,8 @@ func New(r *replicas.Replicas, c *lamport.Clock) *Counter {
 		dedupe:   dedupe.New[uint64](1 * time.Minute),
 		clock:    c,
 	}
+
+	db.NewBadgerDB("incr")
 
 	r.Router.POST(IncrPath, incr.HandleIncrement)
 	r.Router.GET(SyncPath, incr.HandleSync)

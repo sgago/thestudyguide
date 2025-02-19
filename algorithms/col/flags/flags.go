@@ -36,6 +36,9 @@ type Flags interface {
 
 	// Zeros returns the number of false values in the collection.
 	Zeros() int
+
+	// Clone creates a deep copy.
+	Clone() Flags
 }
 
 // BitFlags represents a collection of bit flags.
@@ -65,6 +68,19 @@ func New(bits int) Flags {
 	}
 
 	return newFlags[uint64](bits, 64, math.MaxUint64)
+}
+
+// Clone creates a deep copy of the BitFlags object.
+func (f *BitFlags[T]) Clone() Flags {
+	clone := &BitFlags[T]{
+		bits:   make([]T, 0, len(f.bits)),
+		size:   f.size,
+		maxVal: f.maxVal,
+	}
+
+	clone.bits = append(clone.bits, f.bits...)
+
+	return clone
 }
 
 // New8 creates a new instance of BitFlags with a specified number of bits.
