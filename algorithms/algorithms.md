@@ -25,7 +25,8 @@
   - [Amortized](#amortized)
   - [Time complexity math](#time-complexity-math)
   - [Tricks](#tricks)
-  - [Pedantic sidenote](#pedantic-sidenote)
+  - [Pedantic aside](#pedantic-aside)
+- [Slicing up slices](#slicing-up-slices)
 - [Hash functions and maps](#hash-functions-and-maps)
   - [Common hash functions](#common-hash-functions)
   - [Crypto package in Go](#crypto-package-in-go)
@@ -253,7 +254,7 @@ N > 10^6 | O(logN) or O(1) | Binary search, math, cycle sort adjacent problems.
 
 Guessing the optimal solution from the size of input elements constraint is obviously a risk. _You're guessing after all_. Regardless, this could *maybe suggest a direction or solution to think about*.
 
-## Pedantic sidenote
+## Pedantic aside
 Skip this section if your new to Big O notation or want to save yourself some time.
 
 In business, we often use "Big O" loosely to talk about how an algorithm performs in the average or worst case. We rapidly communicate an expected runtime without writing a ten page whitepaper proof. In academia, however, the business definition is closer to *Big Theta* which covers the expected-case.
@@ -274,7 +275,14 @@ N is a tighter, more restrictive bound. N^2 is less accurate but not *technicall
 
 If it helps, an interviewer is *almost certainly* asking for Big Theta when they ask for the time complexity. If you feel unsure if they actually want Big O or Big Theta, you can ask and attempt to explain this long side note.
 
-Anyway, this guide is focused on getting a job in industry, not academia. As such, it will use the looser Big O definition to keep the circus moving. Also, this guide will take it a step further and drop the O and paraentheses and simply say N^2 or NLogN to mean O(N^2) and O(NLogN) so that the author can stave off carpel tunnel syndrome a bit longer.
+Anyway, this guide is focused on getting a job in industry, not academia. As such, it will use the looser Big O definition to keep the circus moving. Also, this guide will take it a step further and drop the O and parentheses and simply use N^2 or NLogN to mean O(N^2) and O(NLogN) so that the author can stave off carpel tunnel syndrome a bit longer.
+
+# Slicing up slices
+- _Subarrays_ are contiguous chunk of the original slice. You can't have any missing elements in between numbers and they need to be in the same order. In `[1, 3, 5]`, valid subarrays are `[1]`, `[3]`, `[5]`, `[1, 3]`, `[3, 5]`, and `[1, 3, 5]`. Notice that `[1, 5]` is not a subarray because it's missing 3.
+- _Subsequences_ are similar to subarrays, except that we can drop any number elements. are `[1]`, `[3]`, `[5]`, `[1, 3]`, `[3, 5]`, `[1, 3, 5]`, and `[1, 5]`. While we can drop elements, they must be in the same order.
+- A _subset_ can be any elements in any order. Elements can be skipped--you can even skip all elements. There are 2^n possibilities.
+- A _permutation_ rearranges the elements, but no elements can be skipped. For example, `[1, 5, 3]`, `[5, 3, 1]`, and `[3, 1, 5]` are all permutations of `[1, 3, 5]` 
+- A _partition_ splits the array into multiple, disjointed arrays. The arrays are not allowed to share or duplicate elements. Valid partitions of `[1, 3, 5]` are `[[1], [3], [5]]`, `[[1, 3], [5]]`, and `[[1], [3, 5]]`.
 
 # Hash functions and maps
 A hash function converts arbitrary sized data into a fixed value, typically an Int32. For example, summing all integers in an array and mod'ing them by 100. We convert a bunch of data or text into a smaller, ergonomic number.
@@ -319,6 +327,8 @@ Collisions are unavoidable, so we need to design around it. For example, if "ann
 [List of hash functions](https://www.geeksforgeeks.org/hash-functions-and-list-types-of-hash-functions/)
 
 # Sorting
+TODO: Introduce sorting
+
 - Time complexity = The amount of time it takes to sort the collection as a function of the size of the input data, represented in big O notation. Basic sorting is usually N^2, advanced are usually NlogN.
 - Stability = If two elements have equal keys, then the order of these elements remains unchanged. This can be valuable for historical data, user expectations, or multi-criteria sorts where not sorting equal elements is important.
 - In-place = The sorting algorithm sorts the input data structure without need to allocate additional memory to store the sorted results. This is valuable for large data sets.
@@ -532,6 +542,7 @@ Tree traversal are types of traveling through the nodes of a tree.
 - In-order visits the left branch, current node, then right branch.
 - Pre-order visits the current node, left subtree, and right subtree.
 - Post-order visits the left subtree, right subtree, and current node.
+- Level-order visits the nodes by level, starting at the top, from left to right.
 
 For example, given the following binary search tree,
 ```
@@ -547,6 +558,7 @@ the visits to each node would be:
 - In-order: 1 3 5 7 8 10 14
 - Pre-order: 8 3 1 5 7 10 14
 - Post-order: 1 7 5 3 14 10 8
+- Level-order: 8 3 10 1 5 14 7
 
 ## Tree keywords
 These keywords may indicate a tree if they appear in the story problem text.

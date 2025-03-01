@@ -29,7 +29,7 @@ func TestKClosestPoints(t *testing.T) {
 	}
 
 	k := 5
-	h := heap.NewFunc[vec.V2D[int]](3, less, vectors...)
+	h := heap.NewFunc(3, less, vectors...)
 
 	for i := 0; i < k; i++ {
 		v := h.Pop()

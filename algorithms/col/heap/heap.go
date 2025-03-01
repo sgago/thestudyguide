@@ -13,7 +13,7 @@ type Heap[T any] struct {
 }
 
 func New[T cmp.Ordered](cap int, vals ...T) *Heap[T] {
-	return NewFunc[T](cap, func(i, j T) bool { return i < j }, vals...)
+	return NewFunc(cap, func(i, j T) bool { return i < j }, vals...)
 }
 
 // New creates a new min heap using the less function.
